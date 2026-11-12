@@ -119,7 +119,7 @@ def task_list(request):
         task.can_edit = task.can_manage or request.user.pk in [task.sales_id, task.engineer_id] or any(p.pk == request.user.pk for p in task.assignees.all())
     sort = request.GET.get('sort', 'no')
     headers = [{'key':key, 'label':label, 'next':('-'+key if sort == key else key), 'active':sort.lstrip('-') == key, 'descending':sort.startswith('-')} for key,label in HEADERS]
-    ctx.update(page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
+    ctx.update(task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
     return render(request, 'work/tasks.html', ctx)
 
 @login_required

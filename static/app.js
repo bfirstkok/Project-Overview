@@ -77,7 +77,7 @@
             if (typeof result.version !== 'number') throw new Error('Invalid response');
             row.dataset.version = String(result.version);
             control.savedValue = value;
-            message.textContent = '✓ บันทึกงาน #' + row.dataset.taskId + ' แล้ว · version ' + result.version;
+            message.textContent = '✓ บันทึกงาน #' + row.dataset.taskId + ' เรียบร้อยแล้ว';
             const progress = row.querySelector('.progress-bar');
             progress.style.width = result.progress + '%';
             progress.parentElement.setAttribute('aria-valuenow', result.progress);
@@ -85,13 +85,15 @@
             if (control.dataset.field === 'priority') control.className = 'priority-' + value;
             const status = row.querySelector('[data-field="status"]')?.value || row.dataset.status;
             const priority = row.querySelector('[data-field="priority"]')?.value || row.dataset.priority;
-            const due = row.querySelector('[data-field="due_date"]')?.value || row.dataset.due;
+            const due = row.querySelector('[data-field="due_date"]')?.value ?? row.dataset.due;
             const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Bangkok'}).format(new Date());
             row.classList.remove('row-complete','row-cancelled','row-overdue','row-urgent');
             if (status === 'done') row.classList.add('row-complete');
             else if (status === 'cancelled') row.classList.add('row-cancelled');
             else if (due && due < today) row.classList.add('row-overdue');
             else if (['high','critical'].includes(priority)) row.classList.add('row-urgent');
+            row.dataset.status = status; row.dataset.priority = priority; row.dataset.due = due;
+            row.dispatchEvent(new CustomEvent('projectwork:saved', {bubbles:true,detail:{row}}));
           } catch (error) {
             message.textContent = 'การเชื่อมต่อขัดข้อง กรุณาโหลดข้อมูลล่าสุดเพื่อตรวจว่าบันทึกสำเร็จหรือไม่';
           }

@@ -51,3 +51,12 @@ The original user browser tabs were preserved. The localhost development server 
 - No production deployment, load test or backup recovery drill was performed. Deployment readiness is not inferred from unit tests.
 
 Portable PostgreSQL is restricted to 127.0.0.1:15432 with SCRAM authentication under ignored `.local/`. A pre-upgrade dump is stored there. Secrets, staged import data, media, databases and runtime files are not committed.
+
+## UI readability update
+
+- Re-ran the existing PostgreSQL suite: **80/80 tests passed**, 12.784 seconds.
+- Increased body/table text to 15px/14px, raised contrast, simplified visible filters and added actual filtered task summaries.
+- Verified default read mode hides inline editors. Enabled editing, saved the synthetic UAT task progress at 99%, switched to cards and confirmed the card showed the saved 99%. Restored 100% through the same UI.
+- Verified search returned two UAT tasks and clearing filters restored the list. Verified the sidebar collapse control expands working space.
+- Verified phone width 390px: document 375px, automatic card layout, readable task names, assignments, dates and progress. Reset the viewport override afterward.
+- Checked browser console: no JavaScript errors. Node syntax checks passed for both app.js and readable.js.

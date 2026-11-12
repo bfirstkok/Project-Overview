@@ -1,0 +1,32 @@
+<form method="get" class="filter-bar readable-filters">
+  <input type="hidden" name="view" value="{{ view|default:'list' }}">
+  <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+  {% if request.GET.mine %}<input type="hidden" name="mine" value="1">{% endif %}
+  {% if request.GET.overdue %}<input type="hidden" name="overdue" value="1">{% endif %}
+  {% if request.GET.high %}<input type="hidden" name="high" value="1">{% endif %}
+  <div class="filter-main">
+    <label>ค้นหางาน<input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="พิมพ์ชื่องานหรือโปรเจกต์…" aria-label="ค้นหางาน"></label>
+    <label>โปรเจกต์<select class="form-select" name="project" aria-label="กรองโปรเจกต์"><option value="">ทุกโปรเจกต์</option>{% for project in projects %}<option value="{{ project.pk }}" {% if request.GET.project == project.pk|stringformat:'s' %}selected{% endif %}>{{ project.title }}</option>{% endfor %}</select></label>
+    <label>สถานะ<select class="form-select" name="status" aria-label="กรองสถานะ"><option value="">ทุกสถานะ</option>{% for value,label in statuses %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <div class="filter-actions"><button class="btn btn-primary">ค้นหา</button><a href="{{ request.path }}">ล้างตัวกรอง</a></div>
+  </div>
+  <details class="filter-extra" {% if request.GET.sales or request.GET.engineer or request.GET.assignees or request.GET.priority or request.GET.no or request.GET.project_name or request.GET.task_name or request.GET.notes or request.GET.start_from or request.GET.start_to or request.GET.end_from or request.GET.end_to or request.GET.progress_min or request.GET.progress_max %}open{% endif %}>
+    <summary>ตัวกรองเพิ่มเติม · ผู้รับผิดชอบ วันที่ และความสำคัญ</summary>
+    <div class="filter-extra-grid">
+      <label>Sales<select class="form-select" name="sales" aria-label="กรอง Sales"><option value="">Sales ทุกคน</option>{% for person in sales_people %}<option value="{{ person.pk }}" {% if request.GET.sales == person.pk|stringformat:'s' %}selected{% endif %}>{{ person }}</option>{% endfor %}</select></label>
+      <label>Engineer<select class="form-select" name="engineer" aria-label="กรอง Engineer"><option value="">Engineer ทุกคน</option>{% for person in engineer_people %}<option value="{{ person.pk }}" {% if request.GET.engineer == person.pk|stringformat:'s' %}selected{% endif %}>{{ person }}</option>{% endfor %}</select></label>
+      <label>ผู้รับผิดชอบรวม<select class="form-select" name="assignees" aria-label="กรองผู้รับผิดชอบ"><option value="">ทุกคน</option>{% for person in people %}<option value="{{ person.pk }}" {% if request.GET.assignees == person.pk|stringformat:'s' %}selected{% endif %}>{{ person }}</option>{% endfor %}</select></label>
+      <label>ความสำคัญ<select class="form-select" name="priority" aria-label="กรองความสำคัญ"><option value="">ทุกระดับ</option>{% for value,label in priorities %}<option value="{{ value }}" {% if request.GET.priority == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>วันเริ่มต้น จาก<input type="date" class="form-control" name="start_from" value="{{ request.GET.start_from }}"></label>
+      <label>วันเริ่มต้น ถึง<input type="date" class="form-control" name="start_to" value="{{ request.GET.start_to }}"></label>
+      <label>กำหนดเสร็จ จาก<input type="date" class="form-control" name="end_from" value="{{ request.GET.end_from }}"></label>
+      <label>กำหนดเสร็จ ถึง<input type="date" class="form-control" name="end_to" value="{{ request.GET.end_to }}"></label>
+      <label>% Complete ต่ำสุด<input type="number" min="0" max="100" class="form-control" name="progress_min" value="{{ request.GET.progress_min }}"></label>
+      <label>% Complete สูงสุด<input type="number" min="0" max="100" class="form-control" name="progress_max" value="{{ request.GET.progress_max }}"></label>
+      <label>เลขงาน No.<input type="number" min="1" class="form-control" name="no" value="{{ request.GET.no }}"></label>
+      <label>Notes to Colleague<input class="form-control" name="notes" value="{{ request.GET.notes }}"></label>
+      <label>Project Name<input class="form-control" name="project_name" value="{{ request.GET.project_name }}"></label>
+      <label>Task<input class="form-control" name="task_name" value="{{ request.GET.task_name }}"></label>
+    </div>
+  </details>
+</form>

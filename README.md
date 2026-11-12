@@ -8,7 +8,8 @@ Django 5.2 LTS + Bootstrap 5 + PostgreSQL 17 + Docker Compose/Caddy ภาษา
 
 **No. · Project Name · Task · Priority · Status · Start Date · End Date · % Complete · Sales · Engineer · Notes to Colleague**
 
-- Inline Editing ตามสิทธิ์ ตรวจข้อมูลที่ backend บันทึกเมื่อออกจากช่องหรือกด Enter (Notes ใช้ Ctrl+Enter / Command+Enter)
+- เปิดมาเป็นโหมดอ่านด้วยตัวอักษร 14–15px กด **เปิดแก้ไขในตาราง** เมื่อต้องการ Inline Editing ตามสิทธิ์ บันทึกเมื่อออกจากช่องหรือกด Enter (Notes ใช้ Ctrl+Enter / Command+Enter) แล้วกด **กลับโหมดอ่าน**
+- เลือกตาราง Excel หรือการ์ดงานได้ มือถือเปิดการ์ดอัตโนมัติ มีปุ่มย่อ sidebar เพื่อเพิ่มพื้นที่ตาราง ชื่อ Project/Task ตรึงไว้เมื่อเลื่อนบนจอกว้าง และย้ายตัวกรองรองเข้าเมนูเพิ่มเติม
 - Priority/Status Dropdown, Date Picker, Progress Bar และสีงานเกินกำหนด/เร่งด่วน/เสร็จ เลื่อนตารางแนวนอนได้
 - กดหัวคอลัมน์เพื่อเรียงขึ้น/ลง ค้นหา Project/Task และกรอง Project, Sales, Engineer, ผู้รับผิดชอบรวม, Priority/Status มีตัวกรองเพิ่มเติมสำหรับ No., ชื่อ, Notes, ช่วงวันที่ และ % Complete
 - No. คือ task ID คงที่ กดเลขหรือ “รายละเอียด” เพื่อเปิด full form, notes/comments, attachments และประวัติ
