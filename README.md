@@ -20,7 +20,7 @@ Django 5.2 LTS + Bootstrap 5 + PostgreSQL 17 + Docker Compose/Caddy ภาษา
 - แยก Project และ Task จริง แต่ละ Task มี Sales, Engineer, สมาชิกเพิ่มเติม และกำหนดการของตน งานไม่ผูก Project เป็นงานทั่วไป/ส่วนตัว
 - Dashboard แยกที่ `/dashboard/`: Total/In Progress/Complete/Overdue/High, My Tasks, Tasks by Sales/Engineer, Workload by Employee และกิจกรรม
 
-ยังไม่ได้รับไฟล์ Excel ต้นฉบับหรือภาพ To-do List ในรอบปรับปรุงนี้ จึงอ้างอิงชื่อ/ลำดับ 11 คอลัมน์ตาม Requirement ที่ระบุ ไม่อ้างว่าตรวจตรงกับไฟล์บริษัทแล้ว ข้อมูล seed/UAT ระบุชัดว่าเป็นข้อมูลทดลอง ไม่มี mock endpoint แทนฟังก์ชันจริง
+ได้รับภาพ To-do List ของบริษัทเป็น Reference แล้ว จึงปรับสัดส่วนคอลัมน์ Project/Task/Notes หัวตาราง เส้นแบ่งช่อง และแถบ Progress ให้ใกล้รูปแบบเดิม มีแถวกระชับ/แถวอ่านสบาย ปุ่มขยายพื้นที่ตาราง และเลือก 20/50/100 งานต่อหน้าได้ ยังไม่มีไฟล์ .xlsx ต้นฉบับเพื่อทดสอบข้อมูลจริง จึงไม่ถอดหรือสมมติข้อมูลบริษัทจากภาพ ข้อมูล seed/UAT ระบุชัดว่าเป็นข้อมูลทดลอง ไม่มี mock endpoint แทนฟังก์ชันจริง
 
 ## สิทธิ์และการทำงานพร้อมกัน
 

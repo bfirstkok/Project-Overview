@@ -60,3 +60,11 @@ Portable PostgreSQL is restricted to 127.0.0.1:15432 with SCRAM authentication u
 - Verified search returned two UAT tasks and clearing filters restored the list. Verified the sidebar collapse control expands working space.
 - Verified phone width 390px: document 375px, automatic card layout, readable task names, assignments, dates and progress. Reset the viewport override afterward.
 - Checked browser console: no JavaScript errors. Node syntax checks passed for both app.js and readable.js.
+
+## Company Excel screenshot reference update
+
+- The user supplied three screenshots of the original company To-do List. These are now layout references; no company records were transcribed, inferred or imported from the images. The original XLSX is still unavailable.
+- Retained the eleven column names/order and increased emphasis on Project/Task/Notes, pale worksheet headers, visible grid lines and purple progress bars.
+- Added compact rows (measured 39px height with 13px text), comfortable-row toggle, focus-table mode and bounded page-size choices 20/50/100. Focus mode moved the table viewport top to 196px in the desktop check.
+- Full PostgreSQL regression suite: **81/81 passed**, 12.677 seconds, including the new page-size allowlist check.
+- Browser verified compact/comfortable toggle, focus mode and selecting 100 rows. No JavaScript errors were recorded.

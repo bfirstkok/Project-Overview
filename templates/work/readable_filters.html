@@ -1,5 +1,5 @@
 <form method="get" class="filter-bar readable-filters">
-  <input type="hidden" name="view" value="{{ view|default:'list' }}">
+  <input type="hidden" name="per_page" value="{{ page_size|default:20 }}"><input type="hidden" name="view" value="{{ view|default:'list' }}">
   <input type="hidden" name="sort" value="{{ request.GET.sort }}">
   {% if request.GET.mine %}<input type="hidden" name="mine" value="1">{% endif %}
   {% if request.GET.overdue %}<input type="hidden" name="overdue" value="1">{% endif %}

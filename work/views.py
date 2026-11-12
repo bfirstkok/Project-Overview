@@ -113,13 +113,14 @@ def task_list(request):
         for task in month_tasks: grouped.setdefault(task.due_date.day, []).append(task)
         ctx.update(weeks=[[{'day': d, 'tasks': grouped.get(d, [])} for d in week] for week in calendar.monthcalendar(first.year, first.month)], month=first, previous=first - timedelta(days=1), following=(first + timedelta(days=32)).replace(day=1))
     else: mode = 'list'
-    task_page = page(request, qs)
+    page_size = {'20':20,'50':50,'100':100}.get(request.GET.get('per_page','20'),20)
+    task_page = page(request, qs, page_size)
     for task in task_page:
         task.can_manage = request.user.is_manager or task.creator_id == request.user.pk
         task.can_edit = task.can_manage or request.user.pk in [task.sales_id, task.engineer_id] or any(p.pk == request.user.pk for p in task.assignees.all())
     sort = request.GET.get('sort', 'no')
     headers = [{'key':key, 'label':label, 'next':('-'+key if sort == key else key), 'active':sort.lstrip('-') == key, 'descending':sort.startswith('-')} for key,label in HEADERS]
-    ctx.update(task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
+    ctx.update(page_size=page_size, task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
     return render(request, 'work/tasks.html', ctx)
 
 @login_required

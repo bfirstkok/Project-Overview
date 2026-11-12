@@ -1,6 +1,12 @@
 <div class="register-toolbar">
   <div><h2>รายการงาน <span class="text-muted">{{ page.paginator.count }}</span></h2><p id="register-help">อ่านข้อมูลได้ทันที · เปิดโหมดแก้ไขเมื่อต้องการอัปเดต</p></div>
   <div class="register-actions">
+    <button type="button" id="focus-table" class="btn btn-outline-secondary" aria-pressed="false">⛶ ขยายตาราง</button>
+    <form method="get" class="page-size-control">
+      {% for key,value in request.GET.items %}{% if key != 'page' and key != 'per_page' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+      <label for="rows-per-page">แสดง</label><select id="rows-per-page" name="per_page" aria-label="จำนวนแถวต่อหน้า"><option value="20" {% if page_size == 20 %}selected{% endif %}>20 แถว</option><option value="50" {% if page_size == 50 %}selected{% endif %}>50 แถว</option><option value="100" {% if page_size == 100 %}selected{% endif %}>100 แถว</option></select><button type="submit" class="btn btn-outline-secondary">ใช้</button>
+    </form>
+    <button type="button" id="density-toggle" class="btn btn-outline-secondary" aria-pressed="true">แถวกระชับ</button>
     <div class="layout-switch" role="group" aria-label="มุมมองรายการงาน"><button type="button" id="layout-table" aria-pressed="true">ตาราง Excel</button><button type="button" id="layout-cards" aria-pressed="false">การ์ดงาน</button></div>
     <button type="button" id="editing-toggle" class="btn btn-outline-secondary" aria-pressed="false">✎ เปิดแก้ไขในตาราง</button>
   </div>

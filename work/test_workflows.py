@@ -94,6 +94,10 @@ class ExcelWorkflows(TestCase):
         self.login();response=self.client.get('/')
         for key,label in COLUMNS:self.assertContains(response,label)
         self.assertContains(response,'data-update-url=')
+    def test_task_page_size_uses_bounded_choices(self):
+        self.login()
+        self.assertEqual(self.client.get('/tasks/?per_page=100').context['page'].paginator.per_page,100)
+        self.assertEqual(self.client.get('/tasks/?per_page=999999').context['page'].paginator.per_page,20)
     def test_filters_all_columns_and_sort_whitelist(self):
         self.task.notes_to_colleague='Please review proposal';self.task.start_date=date(2026,11,1);self.task.due_date=date(2026,11,30);self.task.save()
         self.login()

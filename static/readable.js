@@ -10,6 +10,23 @@
   const tableButton = document.querySelector('#layout-table');
   const cardsButton = document.querySelector('#layout-cards');
   const help = document.querySelector('#register-help');
+  const focusButton = document.querySelector('#focus-table');
+  let sidebarBeforeFocus = false;
+  function focusTable(on) {
+    if (on) sidebarBeforeFocus = document.body.classList.contains('sidebar-collapsed');
+    document.body.classList.toggle('register-focus', on);
+    document.body.classList.toggle('sidebar-collapsed', on || sidebarBeforeFocus);
+    focusButton?.setAttribute('aria-pressed', String(on));
+    if (focusButton) focusButton.textContent = on ? '⛶ กลับหน้าปกติ' : '⛶ ขยายตาราง';
+  }
+  focusButton?.addEventListener('click', () => focusTable(!document.body.classList.contains('register-focus')));
+  const densityButton = document.querySelector('#density-toggle');
+  root.classList.add('register-compact');
+  densityButton?.addEventListener('click', () => {
+    const compact = root.classList.toggle('register-compact');
+    densityButton.setAttribute('aria-pressed', String(compact));
+    densityButton.textContent = compact ? 'แถวกระชับ' : 'แถวอ่านสบาย';
+  });
   function cellText(control) {
     const raw = control.savedValue ?? control.value;
     let value = raw;
@@ -29,7 +46,7 @@
       control.before(span);
     }
     span.textContent = cellText(control);
-    if (control.dataset.field === 'notes_to_colleague') span.title = cellText(control);
+    span.title = cellText(control);
     span.className = 'cell-display';
     if (['status', 'priority'].includes(control.dataset.field)) span.classList.add('badge', `${control.dataset.field}-${control.value}`);
   }
@@ -52,6 +69,7 @@
   }
   function layout(mode) {
     if (mode === 'cards' && !editing(false)) return;
+    if (mode === 'cards' && document.body.classList.contains('register-focus')) focusTable(false);
     root.classList.toggle('register-cards', mode === 'cards');
     tableButton.setAttribute('aria-pressed', String(mode === 'table'));
     cardsButton.setAttribute('aria-pressed', String(mode === 'cards'));
