@@ -1,0 +1,147 @@
+# ProjectWork — Excel-Based Sales & Engineering Tracking
+
+Django 5.2 LTS + Bootstrap 5 + PostgreSQL 17 + Docker Compose/Caddy ภาษาไทย ไม่มี AI หรือ frontend build pipeline
+
+## หน้าหลัก
+
+`/` และ `/tasks/` เป็น Spreadsheet-style To-do List ตาม 11 คอลัมน์:
+
+**No. · Project Name · Task · Priority · Status · Start Date · End Date · % Complete · Sales · Engineer · Notes to Colleague**
+
+- Inline Editing ตามสิทธิ์ ตรวจข้อมูลที่ backend บันทึกเมื่อออกจากช่องหรือกด Enter (Notes ใช้ Ctrl+Enter / Command+Enter)
+- Priority/Status Dropdown, Date Picker, Progress Bar และสีงานเกินกำหนด/เร่งด่วน/เสร็จ เลื่อนตารางแนวนอนได้
+- กดหัวคอลัมน์เพื่อเรียงขึ้น/ลง ค้นหา Project/Task และกรอง Project, Sales, Engineer, ผู้รับผิดชอบรวม, Priority/Status มีตัวกรองเพิ่มเติมสำหรับ No., ชื่อ, Notes, ช่วงวันที่ และ % Complete
+- No. คือ task ID คงที่ กดเลขหรือ “รายละเอียด” เพื่อเปิด full form, notes/comments, attachments และประวัติ
+- Priority: **Low / Normal / High / Critical**
+- Status: **To Do / In Progress / On Hold / Complete / Cancelled**
+- **Status และ Progress 0–100 เป็นอิสระ ไม่มีการเปลี่ยนค่าใดอัตโนมัติจากอีกค่า** การเปลี่ยน dropdown เป็นการเลือกของผู้ใช้เอง
+- Complete/Cancelled ไม่นับเป็นงานค้าง งานเกินกำหนด หรือ High Priority ที่ยังไม่เสร็จ
+- แยก Project และ Task จริง แต่ละ Task มี Sales, Engineer, สมาชิกเพิ่มเติม และกำหนดการของตน งานไม่ผูก Project เป็นงานทั่วไป/ส่วนตัว
+- Dashboard แยกที่ `/dashboard/`: Total/In Progress/Complete/Overdue/High, My Tasks, Tasks by Sales/Engineer, Workload by Employee และกิจกรรม
+
+ยังไม่ได้รับไฟล์ Excel ต้นฉบับหรือภาพ To-do List ในรอบปรับปรุงนี้ จึงอ้างอิงชื่อ/ลำดับ 11 คอลัมน์ตาม Requirement ที่ระบุ ไม่อ้างว่าตรวจตรงกับไฟล์บริษัทแล้ว ข้อมูล seed/UAT ระบุชัดว่าเป็นข้อมูลทดลอง ไม่มี mock endpoint แทนฟังก์ชันจริง
+
+## สิทธิ์และการทำงานพร้อมกัน
+
+| บทบาท | ขอบเขต |
+|---|---|
+| Admin | ทั้งระบบ จัดการบัญชี/บทบาท/ทีม |
+| Manager | งานและ Project ที่เกี่ยวข้องกับทีมตน ผ่านผู้สร้าง ผู้รับผิดชอบ เจ้าของ/สมาชิก Project รวมสิทธิ์ที่ได้รับโดยตรง |
+| Sales / Engineer | งานที่สร้าง/รับผิดชอบ หรืออยู่ใน Project ที่ตนเป็นเจ้าของ/สมาชิก |
+
+ผู้สร้างงานและ Manager/Admin ในขอบเขตสิทธิ์แก้ข้อมูลและ assignments ได้ Sales/Engineer/สมาชิกเพิ่มเติมที่รับผิดชอบแก้ Status, % Complete, Notes to Colleague และบันทึกการทำงานได้ ผู้อ่านงานแสดงความคิดเห็นได้ การมอบหมายใหม่ต้องใช้ผู้ใช้ active ในขอบเขตสิทธิ์และเป็นสมาชิก/เจ้าของ Project
+
+การเอาคนออกจาก Project ไม่ถอด assignment ของ Task อัตโนมัติ ต้องถอดจาก Task ด้วยหากต้องการยกเลิกสิทธิ์ งานส่วนตัวไม่ใช่พื้นที่ลับจาก Manager ของทีม/Admin
+
+Task/Project มี `version` ทุกการแก้ไขใช้ transaction + PostgreSQL row lock เทียบ version จากหน้าที่เปิดไว้ หากมีคนแก้ก่อนตอบ **409 Conflict** และไม่เขียนทับ เปิดเวอร์ชันล่าสุดเปรียบเทียบก่อนบันทึกใหม่ได้ การลบจากหน้าค้างก็ตรวจ version Activity เก็บ actor/time และค่าเดิม → ค่าใหม่ รวม notes และ assignments
+
+## Excel Import / Export
+
+เมนู **Import Excel** หรือ `/excel/import/`:
+
+1. อัปโหลด `.xlsx` สูงสุด 5 MB / 2,000 แถวต่อครั้ง เลือก Worksheet และแถวหัวคอลัมน์ได้
+2. Mapping คอลัมน์ของแต่ละช่อง ห้ามใช้คอลัมน์ซ้ำ Task จำเป็น ส่วนอื่นเว้นว่างได้
+3. ตรวจ Sales/Engineer: จับคู่ username/ชื่อเต็มที่ตรงและไม่ซ้ำ หรือเลือกบัญชีจาก dropdown ตรวจ role/team/project membership ด้วย
+4. Preview แสดงแถวใหม่/ซ้ำ/ผิด พร้อมเลขแถวและเหตุผล ดาวน์โหลดแถวผิดเป็น CSV ได้ ไม่มีการสร้างงานก่อนยืนยัน
+5. ยืนยันนำเข้าใน transaction หากมีแถวผิดต้องแก้ก่อน หรือ **เลือกนำเข้าเฉพาะแถวที่ผ่านอย่างชัดเจน** ข้อมูลซ้ำถูกข้าม ไม่ update งานเดิม
+
+กติกา:
+
+- Duplicate คือ Project Name + Task หลัง normalize ตัวพิมพ์/ช่องว่าง ทั้งในไฟล์และงานเดิมที่มีสิทธิ์เห็น หากตั้งใจเป็นคนละงานให้ใช้ชื่อที่แยกชัดเจน
+- No. ใน Export เป็น ID แอป ใช้ประกอบการตรวจซ้ำ ไม่เป็นคำสั่งเขียนทับ ID ใด
+- รองรับ Excel dates/serials, `DD/MM/YYYY`, `YYYY-MM-DD` และปี พ.ศ. 4 หลัก แปลง พ.ศ. เป็น ค.ศ. ใน Preview ไม่เดาจากปี 2 หลัก
+- % Complete ใช้จำนวนเต็ม 0–100 หรือ Excel percentage cell เช่น 0.75 ในรูปแบบ 75% ทศนิยมที่ไม่ใช่รูปแบบ % จะถูกปฏิเสธเพื่อป้องกันการตีความผิด
+- ค่าว่าง Priority/Status/Progress ใช้ Normal / To Do / 0 ตามที่แจ้งหน้า Mapping ไม่เดาผู้รับผิดชอบหรือลูกค้า
+- Project ว่างเป็น standalone; fill-down จากแถวก่อนหน้าต้องเลือกเอง กรณี Excel เดิมมี merged cells
+- Project ใหม่ต้องสร้างก่อน หรือเลือกอนุญาตสร้างและเลือกประเภทให้ชัดเจน Customer เว้นว่าง ไม่สมมติข้อมูลบริษัท
+- ตรวจชื่อ/วันที่/status/priority/progress/ขนาด Reject formulas ให้ Paste Values ก่อน ไม่ execute macro ใช้ defusedxml และจำกัดขนาด ZIP ที่ขยายแล้ว
+- Preview มี revision และหมดอายุ 24 ชั่วโมง ตรวจซ้ำ/สิทธิ์ตอน confirm ป้องกันยืนยันซ้ำ ใช้ advisory transaction lock เพื่อ serialize imports ที่อาจซ้ำกัน
+- Export Excel มี 11 คอลัมน์ พร้อม freeze panes/filter และ Instructions; Sales/Engineer ใช้ username เพื่อจับคู่กลับได้แน่นอน CSV ใช้ UTF-8 BOM และป้องกัน formula injection; XLSX เก็บข้อความเป็น string ไม่ประมวลผลสูตรจากผู้ใช้
+- Export 11 คอลัมน์ไม่รวมสมาชิกเพิ่มเติม/attachments/comments ซึ่งยังอยู่ในแอปและฐานข้อมูล ไม่ใช่ full database backup
+
+## Microsoft 365 SSO
+
+ใช้งานจริงผ่าน Microsoft 365 `@askme.co.th` แบบ single tenant ใช้ OpenID Connect Authorization Code + PKCE และ state ตรวจ tenant/issuer และ stable object ID ไม่รับอีเมลที่กรอกเองเป็นหลักฐานล็อกอิน
+
+**SSO จริงยังรอ Tenant ID / Client ID / Client Secret ของบริษัท** ปุ่ม Login บอกว่ารอการตั้งค่า ไม่เปิด password fallback บน production ดู [SSO_SETUP.md](SSO_SETUP.md) สำหรับวิธีหา App Registration, Redirect URI และรายการส่งต่อ IT
+
+```powershell
+python manage.py migrate
+python manage.py bootstrap_sso_admin
+python manage.py check_sso
+```
+
+`SSO_ADMIN_EMAIL` กำหนด Admin คนแรกใน environment คำสั่ง bootstrap ไม่สร้างรหัสผ่าน ต้อง Sign in ด้วย Microsoft จริง พนักงานใหม่ได้ role Engineer ในทีมเริ่มต้น Admin ปรับ role/team ได้ เพิ่มบัญชี corporate email ล่วงหน้าเพื่อกำหนด role ก่อน sign in ได้ อีเมลไม่ซ้ำแบบไม่สนตัวพิมพ์ บัญชีปิดใช้งานถูกปฏิเสธ
+
+Local password login ใช้ได้เฉพาะ **DEBUG=true + ALLOW_LOCAL_LOGIN=true** สำหรับ localhost แม้ตั้ง flag=true ก็ถูกปิดเมื่อ DEBUG=false ไม่มี public signup ไม่เก็บ Microsoft access/refresh token ลงฐานข้อมูล
+
+## รันในเครื่องนี้ (Windows)
+
+```powershell
+cd D:\Askme\ProjectWork\Project-Overview
+.\scripts\start-local.ps1
+```
+
+เปิด http://127.0.0.1:8000 บัญชี demo และรหัสผ่านสุ่มอยู่ใน `.local/demo-login.txt` ซึ่งไม่ถูก commit ใช้กรอบ Development บนหน้า Login ระหว่างรอ Entra config หาก server ยังเปิดอยู่ไม่ต้องเปิดซ้ำ
+
+สคริปต์เปิด PostgreSQL portable เฉพาะโปรเจกต์เมื่อพบ `.local/pgdata` (127.0.0.1:15432) แล้ว migrate/runserver ไม่มี Windows service หรือการแก้ PATH กด Ctrl+C เพื่อหยุดเว็บ แล้ว `scripts/stop-local-db.ps1` เพื่อหยุด DB สำหรับ background process ที่ส่งมอบใช้ `scripts/stop-local.ps1`
+
+## ติดตั้งใหม่ / Docker
+
+ต้องมี Docker Desktop/Engine หรือ Python 3.12+ และ PostgreSQL 17
+
+```powershell
+Copy-Item .env.example .env
+# กรอก SECRET_KEY, POSTGRES_PASSWORD แบบสุ่มและค่าอื่นตาม environment
+# สร้าง secret: python -c "import secrets; print(secrets.token_urlsafe(50))"
+docker compose -f compose.yaml -f compose.local.yaml up --build -d
+```
+
+Local override เปิด HTTP/DEBUG ถ้าจะใช้ demo ให้ตั้ง ALLOW_LOCAL_LOGIN=true เฉพาะเครื่อง local และตั้ง DEMO_PASSWORD ผ่าน environment ก่อนสั่ง seed ไม่มี seed อัตโนมัติใน Docker
+
+Production: ตั้ง domain/DNS, `DEBUG=false`, SECRET_KEY, DB password, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, SITE_ADDRESS และ Microsoft credentials ตาม `.env.example` ใช้ **`docker compose up --build -d` ไม่ใช้ compose.local.yaml** Caddy จัด HTTPS, web ใช้ Gunicorn/WhiteNoise, db/media อยู่ใน named volumes ไม่ publish db/web ports
+
+ตั้ง SSO_ADMIN_EMAIL จริง แล้ว `docker compose exec web python manage.py bootstrap_sso_admin` และทดสอบ Sign in จริงตาม [คู่มือ SSO](SSO_SETUP.md)
+
+Native Python:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+# สร้าง .env: DEBUG=true, DB_ENGINE=postgres, POSTGRES_HOST/PORT/DB/USER/PASSWORD ของเครื่อง
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+ใช้ PostgreSQL สำหรับ concurrent editing จริง SQLite เป็นโหมดทดลอง ไม่รับประกัน row locking บน SQLite
+
+ข้อมูลตัวอย่าง: ตั้ง `DEMO_PASSWORD` ผ่าน environment แล้ว `python manage.py seed_demo` สร้างแถวจริงแต่ระบุเป็นข้อมูลทดลอง ห้าม seed production
+
+## Tests และตรวจ deploy
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test --noinput
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run
+.\.venv\Scripts\python.exe manage.py check --deploy
+.\.venv\Scripts\python.exe manage.py check_sso
+```
+
+ผลที่รันจริงดู [VALIDATION.md](VALIDATION.md) Tests ใช้ test database แยก dev/CI database user ต้องมี CREATEDB ไม่รัน tests บน production `check --deploy` เตือน work.W001 หาก production ยังไม่มี SSO config ส่วน `check_sso` บอกว่าค่าครบเท่านั้น ไม่แทนการล็อกอิน Microsoft จริง
+
+## Backup และขอบเขต MVP
+
+สำรอง PostgreSQL กับ media volume ควบคู่กัน เก็บ `.env` ผ่าน secret store ตัวอย่าง backup ที่ไม่ให้ PowerShell เปลี่ยน encoding ของ binary:
+
+```powershell
+docker compose exec db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/projectwork.dump'
+docker compose cp db:/tmp/projectwork.dump ./projectwork.dump
+```
+
+ทดสอบ restore ไปยังฐานข้อมูลว่างก่อนใช้จริง ไม่ใช้ Excel Export แทน DB backup ก่อนอัปเกรด local เก็บ `.local/pre-excel-upgrade.dump` ไว้แล้ว Upgrade แปลง Medium → Normal และแยกผู้รับผิดชอบเดิมตาม role โดยคงข้อมูลเดิมไว้
+
+ยังไม่มี Notifications, Kanban drag-and-drop, realtime, recurring calendar, soft-delete/undelete, antivirus scanning หรือ multi-tenant isolation ไฟล์แนบจำกัด 5 MB/allowlist ตรวจสิทธิ์ดาวน์โหลด ไม่มี public /media/ Audit เป็น application log ไม่ใช่ tamper-proof log; ORM/DB edits โดยตรงอยู่นอก audit ของแอป ไฟล์เก่าที่ parent ถูกลบอาจคงอยู่ ต้องกำหนด retention/cleanup
+
+Google Fonts เป็น optional มี system fallback; Bootstrap/CSS/JS อยู่ใน repository
+
+Docker build/Compose/Caddy และ Microsoft SSO จริงยังต้องทดสอบบน host/tenant เป้าหมาย เครื่องพัฒนาไม่มี Docker และยังไม่มีค่าการเชื่อมต่อ Entra ของบริษัท

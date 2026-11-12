@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+.local
+db.sqlite3
+media
+staticfiles
+work/*.log
+**/__pycache__
+work/browser*

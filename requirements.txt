@@ -1,0 +1,9 @@
+Django>=5.2.8,<5.3
+psycopg[binary]>=3.2,<4
+gunicorn>=23,<24
+whitenoise>=6.8,<7
+openpyxl>=3.1.5,<4
+python-dotenv>=1.0,<2
+tzdata>=2025.2
+defusedxml>=0.7.1,<0.8
+django-allauth[socialaccount]>=65.21.1,<66

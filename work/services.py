@@ -1,0 +1,67 @@
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from .models import Task, Project, Activity
+from .forms import TaskForm, ProjectForm
+from .permissions import edit_task, edit_project
+
+TASK_FIELDS = ['title', 'project', 'description', 'sales', 'engineer', 'priority', 'status', 'start_date', 'due_date', 'progress', 'notes_to_colleague', 'work_notes']
+PROJECT_FIELDS = ['title', 'customer', 'category', 'description', 'owner', 'status', 'start_date', 'due_date', 'document_url']
+
+class EditConflict(Exception):
+    pass
+
+def snapshot(obj, fields, relation):
+    data = {field: str(getattr(obj, field) if getattr(obj, field) is not None else '') for field in fields}
+    data[relation] = ', '.join(str(u) for u in getattr(obj, relation).all())
+    return data
+
+@transaction.atomic
+def save_work(user, data, pk=None, kind='task'):
+    model, form_type = (Task, TaskForm) if kind == 'task' else (Project, ProjectForm)
+    relation = 'assignees' if kind == 'task' else 'members'
+    fields = TASK_FIELDS if kind == 'task' else PROJECT_FIELDS
+    obj = model.objects.select_for_update().get(pk=pk) if pk else None
+    if obj:
+        if not (edit_task(user, obj) if kind == 'task' else edit_project(user, obj)): raise PermissionDenied
+        try: submitted_version = int(data.get('version', ''))
+        except (ValueError, TypeError): submitted_version = None
+        if submitted_version != obj.version: raise EditConflict('มีคนแก้ไขข้อมูลนี้แล้ว กรุณาเปิดข้อมูลล่าสุดและตรวจสอบก่อนบันทึกอีกครั้ง ข้อมูลของคุณยังไม่ถูกบันทึก')
+    before = snapshot(obj, fields, relation) if obj else None
+    form = form_type(data, instance=obj, user=user)
+    if not form.is_valid(): return form, None
+    item = form.save(commit=False)
+    if not item.pk and kind == 'task': item.creator = user
+    if before is not None: item.version += 1
+    item.save(); form.save_m2m()
+    summary = f'สร้าง{kind} {item.title}'
+    if before is not None:
+        after = snapshot(item, fields, relation)
+        changes = [f'{item._meta.get_field(key).verbose_name}: {before[key] or "—"} → {value or "—"}' for key, value in after.items() if before[key] != value]
+        summary = f'แก้ไข {item.title} | ' + (' | '.join(changes) if changes else 'บันทึกข้อมูลเดิม')
+    Activity.objects.create(actor=user, summary=summary, **{kind: item})
+    return form, item
+
+@transaction.atomic
+def inline_update(user, pk, field, value, version):
+    obj = Task.objects.select_for_update().get(pk=pk)
+    if not edit_task(user, obj): raise PermissionDenied
+    form = TaskForm(instance=obj, user=user)
+    if field not in form.Meta.fields or form.fields[field].disabled: raise PermissionDenied
+    data = {name: getattr(obj, name) for name in form.Meta.fields if name != 'assignees'}
+    for name in ['project', 'sales', 'engineer']: data[name] = getattr(obj, name + '_id') or ''
+    data['assignees'] = list(obj.assignees.values_list('pk', flat=True))
+    data['version'] = version
+    data[field] = value
+    return save_work(user, data, pk=pk)
+
+@transaction.atomic
+def delete_work(user, pk, kind, version):
+    from .permissions import manage_task
+    model = Task if kind == 'task' else Project
+    obj = model.objects.select_for_update().get(pk=pk)
+    if not (manage_task(user,obj) if kind=='task' else edit_project(user,obj)): raise PermissionDenied
+    try: submitted=int(version)
+    except (ValueError,TypeError): submitted=None
+    if submitted!=obj.version: raise EditConflict('รายการถูกแก้ไขหลังเปิดหน้ายืนยัน กรุณาตรวจข้อมูลล่าสุดก่อนลบ')
+    Activity.objects.create(actor=user,summary=f'ลบ {kind} #{obj.pk}: {obj.title} | สถานะ {obj.get_status_display()} | version {obj.version}',**{kind:obj})
+    obj.delete()
