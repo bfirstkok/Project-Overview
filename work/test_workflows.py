@@ -47,6 +47,73 @@ class ExcelWorkflows(TestCase):
     def inline(self,field,value,version=None,user=None):
         self.login(user)
         return self.client.post(f'/tasks/{self.task.pk}/inline/',json.dumps({'field':field,'value':value,'version':version if version is not None else self.task.version}),content_type='application/json')
+    def grid(self, rows, user=None):
+        self.login(user)
+        return self.client.post('/tasks/grid/',json.dumps({'rows':rows}),content_type='application/json')
+    def test_grid_saves_combined_dates_and_independent_status(self):
+        self.task.start_date=date(2026,11,1); self.task.due_date=date(2026,11,2); self.task.save()
+        response=self.grid([{'id':self.task.pk,'version':1,'changes':{'start_date':'2026-12-01','due_date':'2026-12-02','progress':100,'status':'hold'}}])
+        self.assertEqual(response.status_code,200)
+        self.task.refresh_from_db()
+        self.assertEqual((self.task.progress,self.task.status,self.task.version),(100,'hold',2))
+        self.assertEqual(self.task.start_date,date(2026,12,1))
+    def test_grid_rolls_back_all_rows_and_activity_on_validation_error(self):
+        second=Task.objects.create(title='Second',creator=self.manager)
+        count=Activity.objects.count()
+        response=self.grid([{'id':self.task.pk,'version':1,'changes':{'progress':25}},{'id':second.pk,'version':1,'changes':{'progress':101}}])
+        self.assertEqual(response.status_code,422)
+        self.task.refresh_from_db(); self.assertEqual(self.task.progress,0)
+        self.assertEqual(Activity.objects.count(),count)
+    def test_grid_conflict_rolls_back_earlier_row(self):
+        second=Task.objects.create(title='Second',creator=self.manager,version=2)
+        response=self.grid([{'id':self.task.pk,'version':1,'changes':{'progress':25}},{'id':second.pk,'version':1,'changes':{'progress':50}}])
+        self.assertEqual(response.status_code,409)
+        self.task.refresh_from_db(); self.assertEqual(self.task.progress,0)
+    def test_grid_rejects_forbidden_fields_and_other_team(self):
+        response=self.grid([{'id':self.task.pk,'version':1,'changes':{'title':'Forbidden'}}],self.engineer)
+        self.assertEqual(response.status_code,403)
+        other=Task.objects.create(title='Private',creator=self.outsider)
+        self.assertEqual(self.grid([{'id':other.pk,'version':1,'changes':{'progress':25}}]).status_code,403)
+    def test_grid_rejects_duplicate_rows_without_saving(self):
+        row={'id':self.task.pk,'version':1,'changes':{'progress':25}}
+        self.assertEqual(self.grid([row,row]).status_code,422)
+        self.task.refresh_from_db(); self.assertEqual(self.task.version,1)
+    def test_calendar_selected_day_and_preview_keep_all_tasks(self):
+        self.task.due_date=date(2026,11,12); self.task.save()
+        for number in range(3): Task.objects.create(title=f'Daily task {number}',creator=self.manager,due_date=date(2026,11,12))
+        self.login()
+        response=self.client.get('/tasks/?view=calendar&year=2026&month=11&day=2026-11-12')
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.context['calendar_selected'],date(2026,11,12))
+        cell=next(c for week in response.context['calendar_weeks'] for c in week if c['date']==date(2026,11,12))
+        self.assertEqual((len(cell['tasks']),len(cell['preview']),cell['more']),(4,2,2))
+        self.assertContains(response,'Daily task 2')
+    def test_calendar_preserves_permission_scope(self):
+        Task.objects.create(title='Hidden calendar task',creator=self.outsider,due_date=date(2026,11,12))
+        self.login()
+        response=self.client.get('/tasks/?view=calendar&year=2026&month=11&day=invalid')
+        self.assertEqual(response.status_code,200)
+        self.assertNotContains(response,'Hidden calendar task')
+        self.assertEqual(response.context['calendar_task_count'],0)
+    def test_legacy_dates_preserved_but_new_invalid_dates_rejected(self):
+        self.task.start_date=date(2026,4,29); self.task.due_date=date(2026,3,31)
+        self.task.source_date_exception=True; self.task.source_number=61; self.task.save()
+        self.assertEqual(self.inline('progress',50).status_code,200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.due_date,date(2026,3,31))
+        self.assertEqual(self.inline('due_date','2026-03-30').status_code,422)
+        self.assertEqual(self.inline('due_date','2026-05-01').status_code,200)
+    def test_source_number_filter_and_order(self):
+        self.task.source_number=400; self.task.save()
+        self.login()
+        response=self.client.get('/tasks/?no=400')
+        self.assertEqual(list(response.context['page']),[self.task])
+    def test_engineer_filter_and_dashboard_include_additional_members(self):
+        self.task.engineer=None; self.task.save(); self.task.assignees.add(self.engineer)
+        self.login()
+        self.assertEqual(list(self.client.get(f'/tasks/?engineer={self.engineer.pk}').context['page']),[self.task])
+        summary=self.client.get('/dashboard/').context['engineer_rows']
+        self.assertEqual(next(row['stats']['total'] for row in summary if row['person']==self.engineer),1)
     def test_primary_sales_and_engineer_can_update(self):
         for person in [self.sales,self.engineer]:
             with self.subTest(person=person):

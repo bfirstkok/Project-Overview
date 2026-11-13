@@ -45,7 +45,7 @@
     row.querySelectorAll('[data-field]').forEach(control => {
       control.savedValue = control.value;
       const save = () => {
-        if (control.value === control.savedValue || control.disabled || row.dataset.conflict) return;
+        if (control.value === control.savedValue || control.disabled || row.dataset.conflict || document.querySelector('#task-register')?.dataset.bulkSaving) return;
         if (!control.checkValidity()) { control.reportValidity(); return; }
         const value = control.value;
         const previous = control.savedValue;

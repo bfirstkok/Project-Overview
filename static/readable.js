@@ -53,6 +53,7 @@
   root.querySelectorAll('[data-field]').forEach(refreshCell);
   root.classList.add('register-ready');
   function editing(on) {
+    if (root.dataset.bulkSaving) return false;
     if (!on) {
       for (const control of root.querySelectorAll('[data-field]')) {
         if (control.value !== control.savedValue && !control.disabled) {
@@ -64,7 +65,7 @@
     root.classList.toggle('register-editing', on);
     editButton.setAttribute('aria-pressed', String(on));
     editButton.textContent = on ? '✓ กลับโหมดอ่าน' : '✎ เปิดแก้ไขในตาราง';
-    help.textContent = on ? 'แก้ไขแล้วกด Enter หรือออกจากช่อง · Notes ใช้ Ctrl+Enter' : 'อ่านข้อมูลได้ทันที · เปิดโหมดแก้ไขเมื่อต้องการอัปเดต';
+    help.textContent = on ? 'Tab → ช่องถัดไป · Enter ↓ แถวถัดไป · Escape คืนค่าก่อนบันทึก · วางหลายช่องจาก Excel ได้ · Notes บันทึกด้วย Ctrl+Enter' : 'ดับเบิลคลิกช่องเพื่อแก้ไข · รองรับ Tab / Enter และวางหลายช่องจาก Excel';
     return true;
   }
   function layout(mode) {
@@ -76,6 +77,11 @@
   }
   layout(window.matchMedia('(max-width: 740px)').matches ? 'cards' : 'table');
   editButton.addEventListener('click', () => editing(!root.classList.contains('register-editing')));
+  root.addEventListener('dblclick', event => {
+    const td = event.target.closest('.spreadsheet td');
+    const control = td?.querySelector('[data-field]:not(:disabled)');
+    if (control && editing(true)) {control.focus(); if (control.tagName === 'INPUT' && control.type === 'text') control.select();}
+  });
   tableButton.addEventListener('click', () => layout('table'));
   cardsButton.addEventListener('click', () => layout('cards'));
   root.addEventListener('projectwork:saved', event => {

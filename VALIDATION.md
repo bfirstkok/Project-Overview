@@ -68,3 +68,17 @@ Portable PostgreSQL is restricted to 127.0.0.1:15432 with SCRAM authentication u
 - Added compact rows (measured 39px height with 13px text), comfortable-row toggle, focus-table mode and bounded page-size choices 20/50/100. Focus mode moved the table viewport top to 196px in the desktop check.
 - Full PostgreSQL regression suite: **81/81 passed**, 12.677 seconds, including the new page-size allowlist check.
 - Browser verified compact/comfortable toggle, focus mode and selecting 100 rows. No JavaScript errors were recorded.
+
+
+## Calendar, grid editing and source-workbook migration (2026-11-13)
+
+- The original XLSX was supplied after the screenshot update. A private one-off transaction backed up application data, removed the 15 previous tasks and imported all 211 populated task rows as 202 projects. Blank numbered template rows were excluded. A repeated Project + Task pair was preserved as separate source rows.
+- Independently compared every imported task's project, title, priority, status, dates, progress, Sales, Engineer/member set, notes, source No. and source row against the original workbook: all 211 matched. Preserved 193 Complete and 18 In Progress independently of progress values. One blank Engineer remains blank.
+- At the user's explicit instruction, preserved the one source row whose End Date precedes Start Date. Retained original typed values and textual dates in private provenance; marked the date exception rather than correcting it. New invalid date edits remain rejected.
+- Expanded the source ALL engineering group and multi-person cells into primary Engineer and additional members. No company email was fabricated. Imported roster entries have unusable passwords until Admin associates verified corporate email.
+- Browser verified a day with 10 tasks: two grid previews, all ten in the daily agenda. At 390px, document width was 375px with no horizontal page overflow and the selected day's full task list below the month.
+- Browser pasted two synthetic progress values (25 and 50) into separate rows, reviewed the old/new values and saved both. Versions advanced together; Status remained To Do. Tab moved from Task to Priority; Enter moved progress to the next row. Removed both QA rows afterward, restoring 211 company tasks. No browser JavaScript errors were recorded.
+- PostgreSQL regression suite covers atomic grid saves, invalid-field rollback including audit history, stale-version rollback, per-field/team permissions, duplicate row rejection, calendar visibility and selected-day completeness, source No. filtering, legacy-date preservation, and additional Engineer metrics. Latest result is recorded after the final run below.
+- Company XLSX, database, import scripts/reports, backups and screenshots remain outside Git. The code push does not publish company task records. Microsoft 365 live sign-in and Docker limitations above still apply.
+
+Final PostgreSQL regression result: **91/91 passed**, 14.700 seconds. Django checks, migration drift check and Node syntax checks passed.

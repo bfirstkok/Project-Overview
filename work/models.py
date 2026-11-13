@@ -50,7 +50,7 @@ class DatedWork(models.Model):
         constraints = [models.CheckConstraint(condition=Q(due_date__gte=models.F('start_date')) | Q(start_date__isnull=True) | Q(due_date__isnull=True), name='%(class)s_valid_dates')]
     def clean(self):
         super().clean()
-        if self.start_date and self.due_date and self.due_date < self.start_date:
+        if self.start_date and self.due_date and self.due_date < self.start_date and not getattr(self, 'source_date_exception', False):
             raise ValidationError({'due_date': 'กำหนดเสร็จต้องไม่ก่อนวันเริ่มต้น'})
     def __str__(self): return self.title
 
@@ -72,6 +72,9 @@ class Project(DatedWork):
         return round(self.tasks.aggregate(value=models.Avg('progress'))['value'] or 0)
 
 class Task(DatedWork):
+    source_number = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    source_data = models.JSONField(default=dict, blank=True, editable=False)
+    source_date_exception = models.BooleanField(default=False, editable=False)
     class Priority(models.TextChoices):
         LOW = 'low', 'Low'
         NORMAL = 'normal', 'Normal'
@@ -88,7 +91,15 @@ class Task(DatedWork):
     work_notes = models.TextField('บันทึกการทำงาน', blank=True)
     class Meta(DatedWork.Meta):
         indexes = [models.Index(fields=['status', 'due_date']), models.Index(fields=['priority'])]
-        constraints = DatedWork.Meta.constraints + [models.CheckConstraint(condition=Q(progress__lte=100), name='task_progress_max')]
+        constraints = [models.CheckConstraint(condition=Q(due_date__gte=models.F('start_date')) | Q(start_date__isnull=True) | Q(due_date__isnull=True) | Q(source_date_exception=True), name='task_valid_dates'), models.CheckConstraint(condition=Q(progress__lte=100), name='task_progress_max')]
+    def clean(self):
+        super().clean()
+        if self.source_date_exception and self.pk and self.start_date and self.due_date and self.due_date < self.start_date:
+            original = Task.objects.filter(pk=self.pk).values('start_date','due_date','source_date_exception').first()
+            if not original or not original['source_date_exception'] or (self.start_date,self.due_date)!=(original['start_date'],original['due_date']):
+                raise ValidationError({'due_date':'วันที่ใหม่ต้องไม่สิ้นสุดก่อนวันเริ่ม ยกเว้นค่าต้นฉบับที่นำเข้าไว้'})
+    @property
+    def register_number(self): return self.source_number or self.pk
     @property
     def overdue(self): return bool(self.due_date and self.due_date < timezone.localdate() and self.status not in [Status.DONE, Status.CANCELLED])
 

@@ -10,6 +10,41 @@ PROJECT_FIELDS = ['title', 'customer', 'category', 'description', 'owner', 'stat
 class EditConflict(Exception):
     pass
 
+class InvalidGridEdit(Exception):
+    pass
+
+@transaction.atomic
+def update_grid(user, rows):
+    """Save a pasted range as one transaction, including audit records."""
+    if not isinstance(rows, list) or not 1 <= len(rows) <= 100:
+        raise InvalidGridEdit('รองรับครั้งละ 1–100 งาน')
+    seen = set()
+    saved = []
+    for row in sorted(rows, key=lambda item: int(item['id'])):
+        pk = int(row['id'])
+        if pk in seen: raise InvalidGridEdit('มีงานซ้ำในรายการ')
+        seen.add(pk)
+        obj = Task.objects.select_for_update().get(pk=pk)
+        if not edit_task(user, obj): raise PermissionDenied
+        changes = row.get('changes')
+        form = TaskForm(instance=obj, user=user)
+        if not isinstance(changes, dict) or not 1 <= len(changes) <= 10:
+            raise InvalidGridEdit('ไม่มีข้อมูลแก้ไข หรือจำนวนคอลัมน์ไม่ถูกต้อง')
+        for field in changes:
+            if field not in TASK_FIELDS or field not in form.fields or form.fields[field].disabled:
+                raise PermissionDenied
+        data = {name: getattr(obj, name) for name in form.Meta.fields if name != 'assignees'}
+        for name in ['project', 'sales', 'engineer']: data[name] = getattr(obj, name + '_id') or ''
+        data['assignees'] = list(obj.assignees.values_list('pk', flat=True))
+        data.update(changes)
+        data['version'] = row.get('version')
+        validated, item = save_work(user, data, pk=pk)
+        if item is None:
+            errors = ' · '.join(str(error) for group in validated.errors.values() for error in group)
+            raise InvalidGridEdit(f'งาน #{pk}: {errors}')
+        saved.append({'id': item.pk, 'version': item.version})
+    return saved
+
 def snapshot(obj, fields, relation):
     data = {field: str(getattr(obj, field) if getattr(obj, field) is not None else '') for field in fields}
     data[relation] = ', '.join(str(u) for u in getattr(obj, relation).all())

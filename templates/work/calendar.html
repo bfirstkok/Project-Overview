@@ -1,0 +1,34 @@
+<section class="work-calendar" aria-label="ปฏิทินกำหนดส่งงาน">
+  <header class="work-calendar-toolbar">
+    <div><h2>{{ month|date:'F Y' }}</h2><p>เดือนนี้มีงานครบกำหนด {{ calendar_task_count }} งาน · เลือกวันที่เพื่อดูรายการเต็ม</p></div>
+    <div class="calendar-navigation">
+      <a class="btn btn-outline-secondary" aria-label="เดือนก่อนหน้า" href="{% querystring year=previous.year month=previous.month day=None page=None %}">←</a>
+      <a class="btn btn-outline-secondary" href="{% querystring year=calendar_today.year month=calendar_today.month day=calendar_today|date:'Y-m-d' page=None %}">วันนี้</a>
+      <a class="btn btn-outline-secondary" aria-label="เดือนถัดไป" href="{% querystring year=following.year month=following.month day=None page=None %}">→</a>
+      <label class="calendar-month-label">ไปเดือน<input type="month" id="calendar-month-picker" aria-label="เลือกเดือน" min="1900-01" max="2100-12" value="{{ month|date:'Y-m' }}"></label>
+    </div>
+  </header>
+  <div class="calendar-color-key"><span><i class="mini-dot progress-bg"></i>กำลังทำ</span><span><i class="mini-dot done-bg"></i>เสร็จแล้ว</span><span><i class="mini-dot hold-bg"></i>พักงาน</span><span><i class="mini-dot" style="background:#c84f45"></i>เกินกำหนด</span><span>แสดงตาม End Date ของงาน</span></div>
+  <div class="calendar-body-layout">
+    <div class="calendar-month-panel">
+      <div class="work-calendar-grid" role="group" aria-label="วันที่ในเดือน {{ month|date:'F Y' }}">
+        {% for full,short in calendar_weekdays %}<div class="work-calendar-weekday"><span class="weekday-full">{{ full }}</span><span class="weekday-short">{{ short }}</span></div>{% endfor %}
+        {% for week in calendar_weeks %}{% for cell in week %}
+        <div class="work-calendar-day {% if not cell.in_month %}outside-month{% endif %} {% if cell.today %}is-today{% endif %} {% if cell.selected %}is-selected{% endif %}">
+          {% if cell.in_month %}
+          <button type="button" class="calendar-date-select" data-calendar-day="{{ cell.date|date:'Y-m-d' }}" aria-pressed="{% if cell.selected %}true{% else %}false{% endif %}" aria-label="เลือกวันที่ {{ cell.date|date:'j F Y' }} · {{ cell.tasks|length }} งาน"><span class="calendar-date-number">{{ cell.date.day }}</span>{% if cell.today %}<span class="today-label">วันนี้</span>{% endif %}{% if cell.tasks %}<span class="day-task-count">{{ cell.tasks|length }} งาน</span>{% endif %}</button>
+          <div class="calendar-day-chips">{% for task in cell.preview %}<a class="calendar-task-chip status-{{ task.status }} {% if task.overdue %}calendar-chip-overdue{% endif %}" href="{% url 'task_detail' task.pk %}" title="{{ task.title }} · {{ task.get_status_display }}">{{ task.title }}</a>{% endfor %}{% if cell.more %}<button type="button" class="calendar-more" data-calendar-day="{{ cell.date|date:'Y-m-d' }}">ดูอีก {{ cell.more }} งาน →</button>{% endif %}</div>
+          {% else %}<span class="outside-date">{{ cell.date.day }}</span>{% endif %}
+        </div>
+        {% endfor %}{% endfor %}
+      </div>
+    </div>
+    <aside class="calendar-agenda" aria-label="งานของวันที่เลือก" aria-live="polite">
+      {% for day in calendar_days %}<section class="calendar-agenda-day" data-agenda-day="{{ day.date|date:'Y-m-d' }}" {% if not day.selected %}hidden{% endif %}>
+        <div class="calendar-agenda-heading"><span>รายการงาน</span><h3>{{ day.date|date:'l j F Y' }}</h3><p>{{ day.tasks|length }} งานครบกำหนด</p></div>
+        {% for task in day.tasks %}<article class="calendar-agenda-task {% if task.overdue %}agenda-overdue{% endif %}"><div class="agenda-task-badges"><span class="badge status-{{ task.status }}">{{ task.get_status_display }}</span>{% if task.overdue %}<span class="overdue">เกินกำหนด</span>{% elif task.priority == 'high' or task.priority == 'critical' %}<span class="badge priority-{{ task.priority }}">{{ task.get_priority_display }}</span>{% endif %}</div><h4><a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a></h4><p class="agenda-project">{{ task.project|default:'งานทั่วไป / ส่วนตัว' }}</p><div class="agenda-assignment">{% if task.sales %}<span>Sales · {{ task.sales }}</span>{% endif %}{% if task.engineer %}<span>Engineer · {{ task.engineer }}</span>{% endif %}</div><div class="agenda-progress"><span>ความคืบหน้า</span><b>{{ task.progress }}%</b></div><div class="progress"><div class="progress-bar" style="width:{{ task.progress }}%"></div></div><a class="agenda-open" href="{% url 'task_detail' task.pk %}">เปิดรายละเอียด →</a></article>{% empty %}<div class="calendar-day-empty"><span aria-hidden="true">✓</span><h4>ไม่มีงานครบกำหนดวันนี้</h4><p>เลือกวันอื่นบนปฏิทินเพื่อดูงาน</p></div>{% endfor %}
+      </section>{% endfor %}
+    </aside>
+  </div>
+  {% if calendar_undated_count %}<p class="calendar-undated">{{ calendar_undated_count }} งานยังไม่ระบุ End Date จึงไม่อยู่ในปฏิทิน · <a href="{% url 'tasks' %}">ไปตารางงาน</a></p>{% endif %}
+</section>

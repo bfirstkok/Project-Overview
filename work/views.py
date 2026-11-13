@@ -22,7 +22,7 @@ from .models import User, Project, Task, Status, Comment, Attachment, Activity, 
 from .forms import ProjectForm, TaskForm, CommentForm, AttachmentForm, CreateUserForm, EditUserForm, TeamForm
 from .permissions import projects_for, tasks_for, edit_project, edit_task, manage_task, activities_for, assignable_users
 from .filters import filter_tasks, HEADERS
-from .services import save_work, inline_update, delete_work, EditConflict
+from .services import save_work, inline_update, delete_work, EditConflict, update_grid, InvalidGridEdit
 
 def audit(user, summary, obj=None):
     return Activity.objects.create(actor=user, summary=summary, task=obj if isinstance(obj, Task) else None, project=obj if isinstance(obj, Project) else None)
@@ -50,7 +50,7 @@ def dashboard(request):
         person_tasks = tasks.filter(Q(sales=person) | Q(engineer=person) | Q(assignees=person)).distinct()
         workload.append({'person':person,'stats':stats(person_tasks)})
     sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(sales=r['person']))} for r in workload if r['person'].role=='sales']
-    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(engineer=r['person']))} for r in workload if r['person'].role=='engineer']
+    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].role=='engineer']
     chart = [{'label': label, 'value': tasks.filter(status=value).count(), 'key': value} for value, label in Status.choices]
     return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(Q(sales=request.user) | Q(engineer=request.user) | Q(assignees=request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate()})
 
@@ -102,16 +102,8 @@ def task_list(request):
     if mode == 'kanban':
         ctx['columns'] = [{'label': label, 'key': value, 'tasks': qs.filter(status=value)} for value, label in Status.choices]
     elif mode == 'calendar':
-        today = timezone.localdate()
-        try:
-            year, month = int(request.GET.get('year', today.year)), int(request.GET.get('month', today.month))
-            if not 1900 <= year <= 2100: raise ValueError('Year out of supported range')
-            first = date(year, month, 1)
-        except (ValueError, OverflowError): first = today.replace(day=1)
-        month_tasks = qs.filter(due_date__year=first.year, due_date__month=first.month)
-        grouped = {}
-        for task in month_tasks: grouped.setdefault(task.due_date.day, []).append(task)
-        ctx.update(weeks=[[{'day': d, 'tasks': grouped.get(d, [])} for d in week] for week in calendar.monthcalendar(first.year, first.month)], month=first, previous=first - timedelta(days=1), following=(first + timedelta(days=32)).replace(day=1))
+        from .calendar_view import calendar_context
+        ctx.update(calendar_context(request, qs))
     else: mode = 'list'
     page_size = {'20':20,'50':50,'100':100}.get(request.GET.get('per_page','20'),20)
     task_page = page(request, qs, page_size)
@@ -131,6 +123,20 @@ def task_detail(request, pk):
 @login_required
 def task_form(request, pk=None):
     return work_form(request, pk, 'task')
+
+@login_required
+@require_POST
+def task_grid(request):
+    try:
+        if len(request.body) > 1024 * 1024: raise InvalidGridEdit('ข้อมูลใหญ่เกินไป')
+        data = json.loads(request.body)
+        if not isinstance(data, dict): raise ValueError()
+        return JsonResponse({'saved': update_grid(request.user, data.get('rows'))})
+    except EditConflict as exc: return JsonResponse({'error':str(exc)}, status=409)
+    except InvalidGridEdit as exc: return JsonResponse({'error':str(exc)}, status=422)
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return JsonResponse({'error':'รูปแบบข้อมูลไม่ถูกต้อง'}, status=400)
+    except Task.DoesNotExist: raise Http404
 
 @login_required
 @require_POST
@@ -231,7 +237,9 @@ def export_report(qs, mode):
     from .excel import workbook_template
     rows=[]
     for task in qs:
-        rows.append([task.pk, str(task.project or ''), task.title, task.get_priority_display(), task.get_status_display(), task.start_date, task.due_date, task.progress, task.sales.username if task.sales else '', task.engineer.username if task.engineer else '', task.notes_to_colleague])
+        person_name = lambda person: str(person) if task.source_data else person.username
+        engineers = ([person_name(task.engineer)] if task.engineer else []) + [person_name(person) for person in task.assignees.all() if person.pk != task.sales_id]
+        rows.append([task.register_number, str(task.project or ''), task.title, task.get_priority_display(), task.get_status_display(), task.start_date, task.due_date, task.progress, person_name(task.sales) if task.sales else '', ', '.join(engineers), task.notes_to_colleague])
     if mode=='csv':
         from .excel import COLUMNS
         response=HttpResponse(content_type='text/csv; charset=utf-8-sig'); response.write('\ufeff')
