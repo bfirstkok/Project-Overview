@@ -42,6 +42,7 @@ def stats(qs):
 
 @login_required
 def dashboard(request):
+    from .dashboard_charts import dashboard_charts
     tasks = tasks_for(request.user)
     summary = stats(tasks)
     workload = []
@@ -52,7 +53,8 @@ def dashboard(request):
     sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(sales=r['person']) | Q(sales_members=r['person'])).distinct())} for r in workload if r['person'].eligible_for('sales')]
     engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(engineer_members=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].eligible_for('engineer')]
     chart = [{'label': label, 'value': tasks.filter(status=value).count(), 'key': value} for value, label in Status.choices]
-    return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(assigned_to(request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate()})
+    chart_context = dashboard_charts(tasks,workload,timezone.localdate())
+    return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(assigned_to(request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate(), **chart_context})
 
 @login_required
 def project_list(request):

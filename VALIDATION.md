@@ -100,3 +100,13 @@ Final PostgreSQL regression result: **91/91 passed**, 14.700 seconds. Django che
 - PostgreSQL regression suite: **103/103 passed**, 26.115 seconds, including multiple-team access, retained assignments on note edits, stale versions, empty selections/full-form clearing, multi-person Excel roundtrip, atomic grid rollback and project isolation for newly assigned people.
 - Browser selected and saved two Sales and three Engineers on a synthetic QA task. Reload retained all five selections; no JavaScript errors. Removed the QA task/project afterward and reverified the 214 original company tasks and all original effective assignments.
 - Node syntax, Django system checks and migration drift checks passed. Private backups, screenshots, roster and company records remain outside source control.
+
+
+## Readable dashboard charts (2026-11-13)
+
+- Added four permission-scoped chart sections above operational task lists: task status, open workload per employee with overdue subset, open-task priority, and the next seven End Dates. Retained the existing canvas status chart and corrected small-segment gaps so a tiny nonzero segment cannot wrap around the ring.
+- Workload counts each task once per employee across primary, group and additional assignments. Open tasks exclude Complete/Cancelled, independent of progress. Due-date charts zero-fill all seven local dates and exclude terminal tasks.
+- Full PostgreSQL suite: **106/106 passed**, 23.933 seconds. Tests cover exact priority/daily counts including zeros, terminal-state exclusions, permission boundaries, duplicate-role deduplication and open-task drilldowns. A follow-up targeted drilldown check passed after adding the retained pending-filter input.
+- Browser verified four rendered charts, a workload click opening exactly the displayed number of tasks, desktop light/dark status/workload charts, and mobile light priority/due charts. At 390px the document was 375px wide with seven day columns and no horizontal page overflow. Reset the temporary viewport and restored the original light theme. No browser JavaScript errors were recorded.
+- Names in the compact operational task list now show all Sales/Engineer assignees instead of letter-only avatar placeholders. Source task data was not changed. Company screenshots stay outside Git.
+- Repaired the ignored virtual environment's base-Python path after a bundled-runtime upgrade, restarted the stopped local PostgreSQL service, and ran verification with the restored local application. No credentials or runtime paths were added to application source.

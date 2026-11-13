@@ -228,6 +228,35 @@ class ExcelWorkflows(TestCase):
         self.assertEqual(self.client.get(f'/tasks/{self.task.pk}/').status_code,200)
         self.assertEqual(self.client.get(f'/tasks/{private.pk}/').status_code,404)
         self.assertFalse(self.project.members.filter(pk=extra.pk).exists())
+    def test_dashboard_charts_priorities_and_seven_day_zero_fill(self):
+        today=timezone.localdate()
+        self.task.due_date=today;self.task.priority='critical';self.task.save()
+        Task.objects.create(title='Next week',creator=self.manager,due_date=today+timedelta(days=6),priority='high')
+        Task.objects.create(title='Completed today',creator=self.manager,due_date=today,status='done',priority='critical')
+        Task.objects.create(title='Cancelled today',creator=self.manager,due_date=today,status='cancelled')
+        self.login();response=self.client.get('/dashboard/')
+        self.assertEqual(len(response.context['due_chart']),7)
+        self.assertEqual([row['count'] for row in response.context['due_chart']],[1,0,0,0,0,0,1])
+        self.assertEqual(response.context['due_chart_total'],2)
+        priorities={row['key']:row['count'] for row in response.context['priority_chart']}
+        self.assertEqual(priorities,{'critical':1,'high':1,'normal':0,'low':0})
+        self.assertContains(response,'ภาระงานค้างรายคน');self.assertContains(response,'กำหนดส่ง 7 วันข้างหน้า')
+    def test_dashboard_charts_use_permissions_and_workload_deduplicates(self):
+        today=timezone.localdate()
+        self.task.sales_members.add(self.sales);self.task.assignees.add(self.sales)
+        self.task.due_date=today-timedelta(days=1);self.task.save()
+        Task.objects.create(title='Private hidden chart',creator=self.outsider,due_date=today,priority='critical')
+        self.login();response=self.client.get('/dashboard/')
+        sales=next(row for row in response.context['workload_chart'] if row['person']==self.sales)
+        self.assertEqual((sales['stats']['pending'],sales['stats']['overdue'],sales['on_time']),(1,1,0))
+        self.assertEqual(sales['overdue_width'],100)
+        self.assertEqual(response.context['due_chart_total'],0)
+        self.assertEqual(sum(row['count'] for row in response.context['priority_chart']),1)
+    def test_chart_pending_drilldown_excludes_terminal_tasks(self):
+        Task.objects.create(title='Terminal task',creator=self.manager,status='done')
+        self.login();response=self.client.get('/tasks/?pending=1')
+        self.assertContains(response,'Test task');self.assertNotContains(response,'Terminal task')
+        self.assertContains(response,'name="pending" value="1"')
     def test_primary_sales_and_engineer_can_update(self):
         for person in [self.sales,self.engineer]:
             with self.subTest(person=person):

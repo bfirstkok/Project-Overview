@@ -45,6 +45,7 @@ def filter_tasks(request):
         from django.utils import timezone
         qs = qs.filter(due_date__lt=timezone.localdate()).exclude(status__in=[Status.DONE, Status.CANCELLED])
     if request.GET.get('high'): qs = qs.filter(priority__in=['high','critical']).exclude(status__in=[Status.DONE, Status.CANCELLED])
+    if request.GET.get('pending'): qs = qs.exclude(status__in=[Status.DONE,Status.CANCELLED])
     qs = qs.annotate(_priority=Case(*[When(priority=p, then=Value(i)) for i,p in enumerate(['low','normal','high','critical'])],default=Value(0),output_field=IntegerField()), _status=Case(*[When(status=s,then=Value(i)) for i,s in enumerate(Status.values)],default=Value(0),output_field=IntegerField()))
     sort = request.GET.get('sort') or '-no'
     if sort.lstrip('-') not in SORTS: sort = '-no'

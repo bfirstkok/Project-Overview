@@ -4,6 +4,7 @@
   {% if request.GET.mine %}<input type="hidden" name="mine" value="1">{% endif %}
   {% if request.GET.overdue %}<input type="hidden" name="overdue" value="1">{% endif %}
   {% if request.GET.high %}<input type="hidden" name="high" value="1">{% endif %}
+  {% if request.GET.pending %}<input type="hidden" name="pending" value="1"><p class="mb-3 small">กำลังแสดงเฉพาะงานค้าง · <a href="{% querystring pending=None page=None %}">แสดงทุกสถานะ</a></p>{% endif %}
   <div class="filter-main">
     <label>ค้นหางาน<input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="พิมพ์ชื่องานหรือโปรเจกต์…" aria-label="ค้นหางาน"></label>
     <label>โปรเจกต์<select class="form-select" name="project" aria-label="กรองโปรเจกต์"><option value="">ทุกโปรเจกต์</option>{% for project in projects %}<option value="{{ project.pk }}" {% if request.GET.project == project.pk|stringformat:'s' %}selected{% endif %}>{{ project.title }}</option>{% endfor %}</select></label>

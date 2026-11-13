@@ -26,8 +26,9 @@
     data.forEach(item => {
       if (!item.value) return;
       const arc = item.value / total * Math.PI * 2;
+      const gap = Math.min(0.025,arc/4);
       ctx.beginPath(); ctx.strokeStyle = colors[item.key];
-      ctx.arc(110, 110, 86, angle + 0.025, angle + arc - 0.025);
+      ctx.arc(110, 110, 86, angle + gap, angle + arc - gap);
       ctx.stroke(); angle += arc;
     });
   }
