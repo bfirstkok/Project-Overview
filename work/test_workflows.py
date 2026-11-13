@@ -257,6 +257,41 @@ class ExcelWorkflows(TestCase):
         self.login();response=self.client.get('/tasks/?pending=1')
         self.assertContains(response,'Test task');self.assertNotContains(response,'Terminal task')
         self.assertContains(response,'name="pending" value="1"')
+    def row_create(self,fields,key=None,user=None):
+        import uuid
+        self.login(user)
+        return self.client.post('/tasks/rows/new/',json.dumps({'request_id':key or str(uuid.uuid4()),'fields':fields}),content_type='application/json')
+    def test_new_row_creates_task_and_multiple_people_with_audit(self):
+        helper=User.objects.create_user('new-row-helper',role='intern',team=self.team)
+        response=self.row_create({'title':'New row task','project':self.project.pk,'sales_members':[self.sales.pk,helper.pk],'engineer_members':[self.engineer.pk,helper.pk],'progress':100,'status':'progress'})
+        self.assertEqual(response.status_code,201)
+        task=Task.objects.get(pk=response.json()['id'])
+        self.assertEqual(task.creator,self.manager)
+        self.assertEqual((task.status,task.progress),('progress',100))
+        self.assertEqual(set(task.sales_member_ids),{self.sales.pk,helper.pk})
+        self.assertEqual(set(task.engineer_member_ids),{self.engineer.pk,helper.pk})
+        self.assertEqual(Activity.objects.filter(task=task).count(),1)
+    def test_new_row_retry_idempotency_does_not_duplicate_task(self):
+        import uuid
+        key=str(uuid.uuid4());data={'title':'Exactly one new row'}
+        first=self.row_create(data,key);second=self.row_create(data,key)
+        self.assertEqual((first.status_code,second.status_code),(201,200))
+        self.assertEqual(first.json()['id'],second.json()['id'])
+        self.assertEqual(Task.objects.filter(title=data['title']).count(),1)
+        self.assertEqual(Activity.objects.filter(task_id=first.json()['id']).count(),1)
+    def test_new_row_validation_does_not_save_invalid_data(self):
+        before=Task.objects.count()
+        for fields in [{'title':''},{'title':'Bad dates','start_date':'2026-12-10','due_date':'2026-12-01'},{'title':'Bad progress','progress':101}]:
+            self.assertEqual(self.row_create(fields).status_code,422)
+        self.assertEqual(Task.objects.count(),before)
+    def test_new_row_enforces_assignment_and_project_permissions(self):
+        private=Project.objects.create(title='Other team project',owner=self.outsider)
+        for fields in [{'title':'Other project','project':private.pk},{'title':'Other person','sales_members':[self.outsider.pk]},{'title':'Wrong role','sales_members':[self.engineer.pk]}]:
+            self.assertEqual(self.row_create(fields).status_code,422)
+    def test_new_row_rejects_invalid_key_and_unexpected_fields(self):
+        self.assertEqual(self.row_create({'title':'Forged','creator':self.outsider.pk}).status_code,400)
+        self.assertEqual(self.row_create({'title':'Bad key'},key='not-a-uuid').status_code,400)
+        self.assertEqual(self.client.get('/tasks/rows/new/').status_code,405)
     def test_primary_sales_and_engineer_can_update(self):
         for person in [self.sales,self.engineer]:
             with self.subTest(person=person):

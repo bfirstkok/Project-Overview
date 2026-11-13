@@ -18,6 +18,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('tasks/<int:pk>/inline/', views.task_inline, name='task_inline'),
     path('tasks/grid/', views.task_grid, name='task_grid'),
+    path('tasks/rows/new/', views.task_create_row, name='task_create_row'),
     path('projects/', views.project_list, name='projects'),
     path('projects/new/', views.project_form, name='project_create'),
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),

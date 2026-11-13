@@ -1,5 +1,5 @@
 (() => {
-  document.querySelectorAll('select[multiple][data-field]').forEach(select => {
+  document.querySelectorAll('select[multiple][data-field],select[multiple][data-new-field]').forEach(select => {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'people-picker-button';
     button.setAttribute('aria-label','เลือกหลายคน · ' + select.getAttribute('aria-label'));

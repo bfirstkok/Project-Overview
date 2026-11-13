@@ -1,0 +1,13 @@
+<tr id="new-task-row" class="new-task-row" hidden>
+  <td><strong>ใหม่</strong></td>
+  <td><select data-new-field="project" aria-label="Project Name แถวใหม่"><option value="">— งานทั่วไป —</option>{% for project in projects %}<option value="{{ project.pk }}" {% if request.GET.project == project.pk|stringformat:'s' or request.GET.new_project == project.pk|stringformat:'s' %}selected{% endif %}>{{ project.title }}</option>{% endfor %}</select></td>
+  <td><input data-new-field="title" aria-label="Task แถวใหม่" placeholder="พิมพ์ชื่องานใหม่…" required maxlength="200"></td>
+  <td><select data-new-field="priority" aria-label="Priority แถวใหม่">{% for key,label in priorities %}<option value="{{ key }}" {% if key == 'normal' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+  <td><select data-new-field="status" aria-label="Status แถวใหม่">{% for key,label in statuses %}<option value="{{ key }}" {% if key == 'todo' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+  <td><input type="date" data-new-field="start_date" aria-label="Start Date แถวใหม่"></td>
+  <td><input type="date" data-new-field="due_date" aria-label="End Date แถวใหม่"></td>
+  <td><input type="number" data-new-field="progress" aria-label="% Complete แถวใหม่" min="0" max="100" value="0" required></td>
+  <td><select multiple data-new-field="sales_members" aria-label="Sales แถวใหม่">{% for person in all_sales %}<option value="{{ person.pk }}">{{ person }}</option>{% endfor %}</select></td>
+  <td><select multiple data-new-field="engineer_members" aria-label="Engineer แถวใหม่">{% for person in all_engineers %}<option value="{{ person.pk }}">{{ person }}</option>{% endfor %}</select></td>
+  <td><textarea data-new-field="notes_to_colleague" aria-label="Notes to Colleague แถวใหม่" rows="2" maxlength="5000" placeholder="บันทึกถึงเพื่อนร่วมงาน"></textarea></td>
+</tr>

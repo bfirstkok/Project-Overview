@@ -110,3 +110,12 @@ Final PostgreSQL regression result: **91/91 passed**, 14.700 seconds. Django che
 - Browser verified four rendered charts, a workload click opening exactly the displayed number of tasks, desktop light/dark status/workload charts, and mobile light priority/due charts. At 390px the document was 375px wide with seven day columns and no horizontal page overflow. Reset the temporary viewport and restored the original light theme. No browser JavaScript errors were recorded.
 - Names in the compact operational task list now show all Sales/Engineer assignees instead of letter-only avatar placeholders. Source task data was not changed. Company screenshots stay outside Git.
 - Repaired the ignored virtual environment's base-Python path after a bundled-runtime upgrade, restarted the stopped local PostgreSQL service, and ran verification with the restored local application. No credentials or runtime paths were added to application source.
+
+
+## Add task rows in the spreadsheet (2026-11-13)
+
+- Added a blank draft row with all ten editable worksheet columns and a visible Save / Save and add another / Cancel toolbar above the scrollable sheet. No task is created until saved. After saving, the latest-first task list reveals the new task; continue mode opens a fresh row and retains the selected project.
+- The create-row endpoint enforces the existing TaskForm permission, role, date and progress rules and records creation activity. User-scoped, transaction-serialized request UUIDs prevent duplicate tasks/audit entries when a submission is retried. Unexpected fields and invalid request IDs are rejected.
+- Full PostgreSQL suite: **111/111 passed**, 22.395 seconds. Added tests for multi-assignee creation and audit, retry idempotency, invalid input without writes, cross-team/project/role restrictions and malformed requests.
+- Browser created a synthetic row with two Sales and two Engineers and verified Save and add another returned to the list with that saved task first and a new empty draft. No JavaScript errors. Removed only the synthetic task afterward and confirmed all 214 company tasks remained. Captured a blank draft on the restored company task list; screenshots remain outside Git.
+- Django checks, migration drift and JavaScript syntax checks passed. Existing company records and source workbook were not modified by the feature update.

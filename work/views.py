@@ -130,6 +130,32 @@ def task_form(request, pk=None):
 
 @login_required
 @require_POST
+def task_create_row(request):
+    import uuid
+    allowed = {'project','title','priority','status','start_date','due_date','progress','sales_members','engineer_members','notes_to_colleague'}
+    try:
+        if len(request.body)>65536: raise ValueError()
+        payload=json.loads(request.body)
+        if not isinstance(payload,dict) or not isinstance(payload.get('fields'),dict): raise ValueError()
+        key=uuid.UUID(payload.get('request_id',''))
+        data=payload['fields']
+        if set(data)-allowed: raise ValueError()
+        data={'priority':'normal','status':'todo','progress':0,**data}
+        with transaction.atomic():
+            User.objects.select_for_update().get(pk=request.user.pk)
+            previous=Task.objects.filter(creation_key=key).first()
+            if previous:
+                if previous.creator_id!=request.user.pk: raise PermissionDenied
+                return JsonResponse({'id':previous.pk,'created':False},status=200)
+            form,task=save_work(request.user,data)
+            if not task:return JsonResponse({'errors':form.errors},status=422)
+            task.creation_key=key;task.save(update_fields=['creation_key'])
+            messages.success(request,f'เพิ่มงาน #{task.pk}: {task.title} แล้ว')
+        return JsonResponse({'id':task.pk,'created':True},status=201)
+    except (ValueError,TypeError,AttributeError):return JsonResponse({'error':'รูปแบบข้อมูลไม่ถูกต้อง'},status=400)
+
+@login_required
+@require_POST
 def task_grid(request):
     try:
         if len(request.body) > 1024 * 1024: raise InvalidGridEdit('ข้อมูลใหญ่เกินไป')

@@ -81,6 +81,7 @@ class Project(DatedWork):
         return round(self.tasks.aggregate(value=models.Avg('progress'))['value'] or 0)
 
 class Task(DatedWork):
+    creation_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     source_number = models.PositiveIntegerField(null=True, blank=True, editable=False)
     source_data = models.JSONField(default=dict, blank=True, editable=False)
     source_date_exception = models.BooleanField(default=False, editable=False)
