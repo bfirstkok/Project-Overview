@@ -82,3 +82,11 @@ Portable PostgreSQL is restricted to 127.0.0.1:15432 with SCRAM authentication u
 - Company XLSX, database, import scripts/reports, backups and screenshots remain outside Git. The code push does not publish company task records. Microsoft 365 live sign-in and Docker limitations above still apply.
 
 Final PostgreSQL regression result: **91/91 passed**, 14.700 seconds. Django checks, migration drift check and Node syntax checks passed.
+
+
+## Six-person roster and Intern assignment (2026-11-13)
+
+- Backed up application data before updating the roster. The employee list contains six active people: three Sales, two Engineers and one Intern. Four old demo accounts were disabled and excluded from the employee roster; the local system administrator remains a separate non-employee account. Historical account references were retained.
+- Preserved all 214 task IDs, versions, primary assignments, additional members, statuses, progress values and dates. Existing corporate administrator access was retained independently of the new Intern occupational role, without granting Django superuser status.
+- Verified rendered task choices contain four Sales candidates and three Engineer candidates, with Intern in both; team and user pages each contain six employees. System accounts do not appear in assignment choices, employee pages or workload metrics.
+- Full PostgreSQL suite: **96/96 passed**, 16.002 seconds. New checks cover both Intern assignment fields, assigned-task editing without automatic administrative access, Excel name matching, service-account exclusion, retained explicit administrative access and cross-team assignment restrictions. Django checks and migration drift check passed.

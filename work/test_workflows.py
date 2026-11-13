@@ -114,6 +114,49 @@ class ExcelWorkflows(TestCase):
         self.assertEqual(list(self.client.get(f'/tasks/?engineer={self.engineer.pk}').context['page']),[self.task])
         summary=self.client.get('/dashboard/').context['engineer_rows']
         self.assertEqual(next(row['stats']['total'] for row in summary if row['person']==self.engineer),1)
+    def test_intern_assignable_in_both_fields_and_can_update_own_task(self):
+        intern=User.objects.create_user('test-intern',first_name='Test intern',role='intern',team=self.team)
+        self.project.members.add(intern)
+        self.assertEqual(self.inline('sales',intern.pk).status_code,200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.inline('engineer',intern.pk).status_code,200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.inline('progress',45,user=intern).status_code,200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.inline('title','Not allowed',user=intern).status_code,403)
+        self.assertFalse(intern.is_admin)
+        self.assertEqual(self.client.get('/users/').status_code,403)
+    def test_intern_excel_mapping_supports_both_sales_and_engineer(self):
+        intern=User.objects.create_user('test-intern',first_name='Test intern',role='intern',team=self.team)
+        self.project.members.add(intern)
+        batch=self.batch([self.row(sales='test-intern',engineer='Test intern')])
+        controls=person_controls(batch.payload,batch.mapping,self.manager)
+        self.assertTrue(all(intern in control['people'] for control in controls))
+        rows=preview_rows(batch,self.manager)
+        self.assertEqual(rows[0]['state'],'new')
+        self.assertEqual(rows[0]['data']['sales'],intern.pk)
+        self.assertEqual(rows[0]['data']['engineer'],intern.pk)
+    def test_service_accounts_hidden_from_roster_and_new_assignments(self):
+        from .forms import TaskForm, ProjectForm
+        service=User.objects.create_user('test-service',role='sales',team=self.team,is_service_account=True)
+        form=TaskForm(user=self.admin)
+        self.assertNotIn(service,form.fields['sales'].queryset)
+        self.assertNotIn(service,form.fields['assignees'].queryset)
+        self.login(self.admin)
+        self.assertNotIn(service,self.client.get('/users/').context['people'])
+        self.assertNotIn(service,[row['person'] for row in self.client.get('/team/').context['people']])
+        self.assertNotIn(service,[row['person'] for row in self.client.get('/dashboard/').context['workload']])
+        service.role='admin';service.save()
+        self.assertIn(service,ProjectForm(user=service).fields['owner'].queryset)
+    def test_intern_keeps_explicit_existing_admin_access_separate_from_role(self):
+        intern=User.objects.create_user('test-admin-intern',role='intern',has_admin_access=True,team=self.team)
+        self.login(intern)
+        self.assertEqual(self.client.get('/users/').status_code,200)
+        self.assertEqual(intern.get_role_display(),'Intern')
+        self.assertFalse(intern.is_superuser)
+    def test_manager_cannot_assign_intern_from_other_team(self):
+        intern=User.objects.create_user('outside-intern',role='intern',team=self.other_team)
+        self.assertEqual(self.inline('sales',intern.pk).status_code,422)
     def test_primary_sales_and_engineer_can_update(self):
         for person in [self.sales,self.engineer]:
             with self.subTest(person=person):

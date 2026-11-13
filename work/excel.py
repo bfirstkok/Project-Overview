@@ -92,7 +92,7 @@ def cell_at(row, mapping, field):
 def person_key(role, name): return 'person_'+hashlib.sha256((role+'|'+normalize(name)).encode()).hexdigest()[:16]
 
 def find_person(people, name, role):
-    matches=[p for p in people if p.role==role and normalize(name) in [normalize(p.username),normalize(p.get_full_name())]]
+    matches=[p for p in people if p.eligible_for(role) and normalize(name) in [normalize(p.username),normalize(p.get_full_name())]]
     return matches[0] if len(matches)==1 else None
 
 def person_controls(payload, mapping, user, submitted=None):
@@ -105,7 +105,7 @@ def person_controls(payload, mapping, user, submitted=None):
             seen.add((role,normalize(name)))
             key=person_key(role,name); match=find_person(people,name,role)
             selected=(submitted.get(key,'') if submitted is not None else str(match.pk) if match else '')
-            result.append({'key':key,'role':role,'name':name,'selected':selected,'people':[p for p in people if p.role==role]})
+            result.append({'key':key,'role':role,'name':name,'selected':selected,'people':[p for p in people if p.eligible_for(role)]})
     return result
 
 def parse_date(cell, epoch):
@@ -183,7 +183,7 @@ def preview_rows(batch, user):
         for role in ['sales','engineer']:
             name=values[role]
             selected=options.get('people',{}).get(person_key(role,name))
-            person=next((p for p in people if str(p.pk)==str(selected) and p.role==role),None) if selected else find_person(people,name,role)
+            person=next((p for p in people if str(p.pk)==str(selected) and p.eligible_for(role)),None) if selected else find_person(people,name,role)
             if name and not person: errors.append(f'{role}: ไม่พบผู้ใช้ที่มีสิทธิ์/ชื่อซ้ำ กรุณาจับคู่ชื่อ "{name}"')
             data[role]=person.pk if person else ''
             if person and project and person.pk!=project.owner_id and not project.members.filter(pk=person.pk).exists(): errors.append(f'{role}: ต้องเพิ่ม {person} เป็นสมาชิกโปรเจกต์ก่อน')

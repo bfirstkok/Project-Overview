@@ -34,8 +34,8 @@ def filtered_tasks(request):
 
 
 def filter_context(user):
-    visible_users = User.objects.filter(Q(pk=user.pk) | Q(tasks__in=tasks_for(user)) | Q(sales_tasks__in=tasks_for(user)) | Q(engineering_tasks__in=tasks_for(user))).distinct()
-    return {'projects': projects_for(user), 'people': visible_users, 'sales_people': visible_users.filter(role='sales'), 'engineer_people': visible_users.filter(role='engineer'), 'statuses': Status.choices, 'priorities': Task.Priority.choices}
+    visible_users = User.objects.filter(Q(pk=user.pk) | Q(tasks__in=tasks_for(user)) | Q(sales_tasks__in=tasks_for(user)) | Q(engineering_tasks__in=tasks_for(user)), is_service_account=False, is_active=True).distinct()
+    return {'projects': projects_for(user), 'people': visible_users, 'sales_people': visible_users.filter(role__in=['sales','intern']), 'engineer_people': visible_users.filter(role__in=['engineer','intern']), 'statuses': Status.choices, 'priorities': Task.Priority.choices}
 
 def stats(qs):
     return qs.aggregate(total=Count('id', distinct=True), done=Count('id', filter=Q(status=Status.DONE), distinct=True), pending=Count('id', filter=~Q(status__in=[Status.DONE, Status.CANCELLED]), distinct=True), progress=Count('id', filter=Q(status=Status.PROGRESS), distinct=True), overdue=Count('id', filter=Q(due_date__lt=timezone.localdate()) & ~Q(status__in=[Status.DONE, Status.CANCELLED]), distinct=True), high=Count('id', filter=Q(priority__in=['high', 'critical']) & ~Q(status__in=[Status.DONE, Status.CANCELLED]), distinct=True))
@@ -49,8 +49,8 @@ def dashboard(request):
     for person in metric_people:
         person_tasks = tasks.filter(Q(sales=person) | Q(engineer=person) | Q(assignees=person)).distinct()
         workload.append({'person':person,'stats':stats(person_tasks)})
-    sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(sales=r['person']))} for r in workload if r['person'].role=='sales']
-    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].role=='engineer']
+    sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(sales=r['person']))} for r in workload if r['person'].eligible_for('sales')]
+    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].eligible_for('engineer')]
     chart = [{'label': label, 'value': tasks.filter(status=value).count(), 'key': value} for value, label in Status.choices]
     return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(Q(sales=request.user) | Q(engineer=request.user) | Q(assignees=request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate()})
 
@@ -114,7 +114,7 @@ def task_list(request):
     from .filters import SORTS
     if sort.lstrip('-') not in SORTS: sort = '-no'
     headers = [{'key':key, 'label':label, 'next':('-'+key if sort == key else key), 'active':sort.lstrip('-') == key, 'descending':sort.startswith('-')} for key,label in HEADERS]
-    ctx.update(page_size=page_size, task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
+    ctx.update(page_size=page_size, task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role__in=['sales','intern']), all_engineers=assignable_users(request.user).filter(role__in=['engineer','intern']))
     return render(request, 'work/tasks.html', ctx)
 
 @login_required
@@ -216,7 +216,7 @@ def team_view(request):
     for person in assignable_users(request.user).select_related('team'):
         qs = tasks_for(request.user).filter(Q(sales=person) | Q(engineer=person) | Q(assignees=person)).distinct()
         people.append({'person': person, 'stats': stats(qs), 'average': round(qs.aggregate(v=Avg('progress'))['v'] or 0), 'tasks': qs.exclude(status__in=[Status.DONE, Status.CANCELLED])[:5]})
-    return render(request, 'work/team.html', {'people': people})
+    return render(request, 'work/team.html', {'people': people, 'staff_groups': [{'label':label,'rows':[row for row in people if row['person'].role==role]} for role,label in [('sales','Sales'),('engineer','Engineer'),('intern','Intern · ช่วยงานได้ทั้งสองทีม')]]})
 
 @login_required
 def activity_view(request): return render(request, 'work/activity.html', {'page': page(request, activities_for(request.user), 30)})
@@ -263,7 +263,7 @@ def export_report(qs, mode):
 @login_required
 def users(request):
     if not request.user.is_admin: raise PermissionDenied
-    return render(request, 'work/users.html', {'people': User.objects.select_related('team').all()})
+    return render(request, 'work/users.html', {'people': User.objects.filter(is_service_account=False).select_related('team').order_by('role','first_name','pk')})
 
 @login_required
 def user_form(request, pk=None):
@@ -271,7 +271,7 @@ def user_form(request, pk=None):
     obj = get_object_or_404(User, pk=pk) if pk else None
     form = (EditUserForm if obj else CreateUserForm)(request.POST or None, instance=obj)
     if request.method == 'POST' and form.is_valid():
-        if obj and obj.pk == request.user.pk and (not form.cleaned_data['is_active'] or form.cleaned_data['role'] != obj.Role.ADMIN):
+        if obj and obj.pk == request.user.pk and (not form.cleaned_data['is_active'] or (form.cleaned_data['role'] != obj.Role.ADMIN and not obj.has_admin_access and not obj.is_superuser)):
             form.add_error(None, 'ไม่สามารถปิดใช้งานหรือลดสิทธิ์ Admin ของตนเองได้')
         elif obj and obj.is_superuser and not request.user.is_superuser:
             raise PermissionDenied

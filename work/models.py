@@ -18,14 +18,23 @@ class User(AbstractUser):
         MANAGER = 'manager', 'Manager'
         SALES = 'sales', 'Sales'
         ENGINEER = 'engineer', 'Engineer'
+        INTERN = 'intern', 'Intern'
+    is_service_account = models.BooleanField('บัญชีระบบ (ไม่ใช่พนักงาน)', default=False, editable=False)
+    has_admin_access = models.BooleanField('สิทธิ์ผู้ดูแลแยกจากตำแหน่งงาน', default=False, editable=False)
     role = models.CharField('บทบาท', max_length=12, choices=Role.choices, default=Role.ENGINEER)
     team = models.ForeignKey(Team, verbose_name='ทีม', null=True, blank=True, on_delete=models.SET_NULL)
     class Meta:
         constraints = [models.UniqueConstraint(Lower('email'), condition=~Q(email=''), name='user_unique_nonempty_email')]
     @property
-    def is_admin(self): return self.is_superuser or self.role == self.Role.ADMIN
+    def is_admin(self): return self.is_superuser or self.has_admin_access or self.role == self.Role.ADMIN
     @property
     def is_manager(self): return self.is_admin or self.role == self.Role.MANAGER
+    def eligible_for(self, assignment):
+        return self.is_active and not self.is_service_account and assignment in [self.Role.SALES,self.Role.ENGINEER] and self.role in [assignment,self.Role.INTERN]
+    @property
+    def work_teams(self):
+        if self.role == self.Role.INTERN: return 'Sales / Engineer'
+        return self.get_role_display()
     def __str__(self): return self.get_full_name() or self.username
 
 class Status(models.TextChoices):

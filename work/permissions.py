@@ -32,7 +32,7 @@ def edit_task(user, task):
     return manage_task(user, task) or user.pk in [task.sales_id, task.engineer_id] or task.assignees.filter(pk=user.pk).exists()
 
 def assignable_users(user):
-    qs = User.objects.filter(is_active=True)
+    qs = User.objects.filter(is_active=True, is_service_account=False)
     if user.is_admin: return qs
     if user.is_manager: return qs.filter(Q(pk=user.pk) | (Q(team_id=user.team_id) if user.team_id else Q(pk=user.pk)))
     return qs.filter(Q(pk=user.pk) | Q(team_id=user.team_id) | Q(projects__in=projects_for(user)) | Q(owned_projects__in=projects_for(user))).distinct()

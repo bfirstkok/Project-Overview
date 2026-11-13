@@ -19,7 +19,8 @@ class ProjectForm(StyledForm, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['version'].initial = self.instance.version
         self.fields['version'].required = bool(self.instance.pk)
-        self.fields['owner'].queryset = assignable_users(user)
+        from django.db.models import Q
+        self.fields['owner'].queryset = User.objects.filter(Q(pk__in=assignable_users(user).values('pk')) | Q(pk=user.pk))
         self.fields['members'].queryset = assignable_users(user)
         if not user.is_manager: self.fields['owner'].queryset = User.objects.filter(pk=user.pk)
         self.fields['members'].help_text = 'กด Ctrl / Command เพื่อเลือกหลายคน'
@@ -37,8 +38,8 @@ class TaskForm(StyledForm, forms.ModelForm):
         self.fields['version'].required = bool(self.instance.pk)
         people = assignable_users(user)
         self.fields['assignees'].queryset = people
-        self.fields['sales'].queryset = people.filter(role=User.Role.SALES)
-        self.fields['engineer'].queryset = people.filter(role=User.Role.ENGINEER)
+        self.fields['sales'].queryset = people.filter(role__in=[User.Role.SALES,User.Role.INTERN])
+        self.fields['engineer'].queryset = people.filter(role__in=[User.Role.ENGINEER,User.Role.INTERN])
         if self.instance.pk:
             # Preserve existing assignees if an employee is deactivated or moves teams.
             # New assignments still come only from the active, authorized choices.
