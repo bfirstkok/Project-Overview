@@ -89,6 +89,9 @@ def cell_at(row, mapping, field):
     if column=='': return {'value':'','kind':'text'}
     return row['cells'][int(column)]
 
+def assignment_names(value):
+    return [name.strip() for name in re.split(r'[,\n&/]+',value or '') if name.strip()]
+
 def person_key(role, name): return 'person_'+hashlib.sha256((role+'|'+normalize(name)).encode()).hexdigest()[:16]
 
 def find_person(people, name, role):
@@ -100,12 +103,12 @@ def person_controls(payload, mapping, user, submitted=None):
     result=[]; seen=set()
     for row in payload['rows']:
         for role in ['sales','engineer']:
-            name=cell_at(row,mapping,role)['value'].strip()
-            if not name or (role,normalize(name)) in seen: continue
-            seen.add((role,normalize(name)))
-            key=person_key(role,name); match=find_person(people,name,role)
-            selected=(submitted.get(key,'') if submitted is not None else str(match.pk) if match else '')
-            result.append({'key':key,'role':role,'name':name,'selected':selected,'people':[p for p in people if p.eligible_for(role)]})
+            for name in assignment_names(cell_at(row,mapping,role)['value']):
+                if name.casefold()=='all' or (role,normalize(name)) in seen: continue
+                seen.add((role,normalize(name)))
+                key=person_key(role,name); match=find_person(people,name,role)
+                selected=(submitted.get(key,'') if submitted is not None else str(match.pk) if match else '')
+                result.append({'key':key,'role':role,'name':name,'selected':selected,'people':[p for p in people if p.eligible_for(role)]})
     return result
 
 def parse_date(cell, epoch):
@@ -181,12 +184,21 @@ def preview_rows(batch, user):
             else: errors.append('ไม่พบ Project ที่เข้าถึงได้ ให้สร้าง Project ก่อนหรืออนุญาตสร้างใหม่')
         data['project']=project.pk if project else ''
         for role in ['sales','engineer']:
-            name=values[role]
-            selected=options.get('people',{}).get(person_key(role,name))
-            person=next((p for p in people if str(p.pk)==str(selected) and p.eligible_for(role)),None) if selected else find_person(people,name,role)
-            if name and not person: errors.append(f'{role}: ไม่พบผู้ใช้ที่มีสิทธิ์/ชื่อซ้ำ กรุณาจับคู่ชื่อ "{name}"')
-            data[role]=person.pk if person else ''
-            if person and project and person.pk!=project.owner_id and not project.members.filter(pk=person.pk).exists(): errors.append(f'{role}: ต้องเพิ่ม {person} เป็นสมาชิกโปรเจกต์ก่อน')
+            selected_people=[]
+            names=assignment_names(values[role])
+            if any(name.casefold()=='all' for name in names):
+                selected_people=[p for p in people if p.eligible_for(role)]
+                warnings.append(f'{role}: ALL จับคู่ผู้มีสิทธิ์ในทีม {len(selected_people)} คน')
+            else:
+                for name in names:
+                    selected=options.get('people',{}).get(person_key(role,name))
+                    person=next((p for p in people if str(p.pk)==str(selected) and p.eligible_for(role)),None) if selected else find_person(people,name,role)
+                    if not person: errors.append(f'{role}: ไม่พบผู้ใช้ที่มีสิทธิ์/ชื่อซ้ำ กรุณาจับคู่ชื่อ "{name}"')
+                    elif person not in selected_people: selected_people.append(person)
+            data[role]=selected_people[0].pk if selected_people else ''
+            data[role+'_members']=[p.pk for p in selected_people]
+            for person in selected_people:
+                if project and person.pk!=project.owner_id and not project.members.filter(pk=person.pk).exists(): errors.append(f'{role}: ต้องเพิ่ม {person} เป็นสมาชิกโปรเจกต์ก่อน')
         try:
             for field in ['priority','status']: data[field]=choice_value(values[field],field)
             for field in ['start_date','due_date']:
@@ -232,7 +244,7 @@ def commit_batch(batch, user, allow_partial=False, expected_revision=None):
             if key not in created_projects:
                 project=Project.objects.create(title=row['values']['project'],customer='',category=batch.options.get('new_category','solution'),owner=user)
                 # All people are drawn from the explicit, permission-checked mapping.
-                members={int(r['data'][role]) for r in rows if normalize(r['values']['project'])==key and r['state']=='new' for role in ['sales','engineer'] if r['data'].get(role)}
+                members={int(member) for r in rows if normalize(r['values']['project'])==key and r['state']=='new' for role in ['sales','engineer'] for member in r['data'].get(role+'_members',[])}
                 project.members.add(*members)
                 Activity.objects.create(actor=user,project=project,summary=f'สร้างโปรเจกต์จาก Excel: {project.title}')
                 created_projects[key]=project

@@ -43,11 +43,11 @@
   document.querySelectorAll('.sheet-row').forEach(row => {
     row.saveQueue = Promise.resolve();
     row.querySelectorAll('[data-field]').forEach(control => {
-      control.savedValue = control.value;
+      control.savedValue = ProjectWorkCells.value(control);
       const save = () => {
-        if (control.value === control.savedValue || control.disabled || row.dataset.conflict || document.querySelector('#task-register')?.dataset.bulkSaving) return;
+        if (ProjectWorkCells.value(control) === control.savedValue || control.disabled || row.dataset.conflict || document.querySelector('#task-register')?.dataset.bulkSaving) return;
         if (!control.checkValidity()) { control.reportValidity(); return; }
-        const value = control.value;
+        const value = ProjectWorkCells.value(control);
         const previous = control.savedValue;
         control.disabled = true;
         pending += 1;
@@ -58,7 +58,7 @@
             const response = await fetch(row.dataset.updateUrl, {
               method: 'POST', credentials: 'same-origin',
               headers: {'Content-Type':'application/json', 'X-CSRFToken':token},
-              body: JSON.stringify({field:control.dataset.field,value,version:Number(row.dataset.version)})
+              body: JSON.stringify({field:control.dataset.field,value:ProjectWorkCells.payload(control,value),version:Number(row.dataset.version)})
             });
             const result = await response.json().catch(() => ({}));
             if (response.redirected) {message.textContent = 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่'; return;}
@@ -69,7 +69,7 @@
               return;
             }
             if (!response.ok) {
-              control.value = previous;
+              ProjectWorkCells.restore(control,previous); control.dispatchEvent(new CustomEvent('projectwork:restored'));
               const details = result.errors ? Object.values(result.errors).flat().join(' · ') : result.error || 'ไม่มีสิทธิ์หรือ session หมดอายุ';
               message.textContent = 'บันทึกไม่ได้: ' + details;
               return;

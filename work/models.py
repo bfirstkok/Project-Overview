@@ -94,6 +94,8 @@ class Task(DatedWork):
     assignees = models.ManyToManyField(User, verbose_name='สมาชิกเพิ่มเติม', related_name='tasks', blank=True)
     sales = models.ForeignKey(User, verbose_name='Sales', null=True, blank=True, on_delete=models.PROTECT, related_name='sales_tasks')
     engineer = models.ForeignKey(User, verbose_name='Engineer', null=True, blank=True, on_delete=models.PROTECT, related_name='engineering_tasks')
+    sales_members = models.ManyToManyField(User, verbose_name='Sales ผู้รับผิดชอบ', blank=True, related_name='sales_group_tasks')
+    engineer_members = models.ManyToManyField(User, verbose_name='Engineer ผู้รับผิดชอบ', blank=True, related_name='engineer_group_tasks')
     notes_to_colleague = models.TextField('Notes to Colleague', blank=True, max_length=5000)
     priority = models.CharField('ความสำคัญ', max_length=12, choices=Priority.choices, default=Priority.NORMAL)
     progress = models.PositiveSmallIntegerField('ความคืบหน้า (%)', default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
@@ -109,6 +111,14 @@ class Task(DatedWork):
                 raise ValidationError({'due_date':'วันที่ใหม่ต้องไม่สิ้นสุดก่อนวันเริ่ม ยกเว้นค่าต้นฉบับที่นำเข้าไว้'})
     @property
     def register_number(self): return self.source_number or self.pk
+    @property
+    def sales_display(self): return ', '.join(str(person) for person in self.sales_members.all()) or str(self.sales or '')
+    @property
+    def engineer_display(self): return ', '.join(str(person) for person in self.engineer_members.all()) or str(self.engineer or '')
+    @property
+    def sales_member_ids(self): return [person.pk for person in self.sales_members.all()]
+    @property
+    def engineer_member_ids(self): return [person.pk for person in self.engineer_members.all()]
     @property
     def overdue(self): return bool(self.due_date and self.due_date < timezone.localdate() and self.status not in [Status.DONE, Status.CANCELLED])
 

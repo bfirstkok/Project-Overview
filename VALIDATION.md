@@ -90,3 +90,13 @@ Final PostgreSQL regression result: **91/91 passed**, 14.700 seconds. Django che
 - Preserved all 214 task IDs, versions, primary assignments, additional members, statuses, progress values and dates. Existing corporate administrator access was retained independently of the new Intern occupational role, without granting Django superuser status.
 - Verified rendered task choices contain four Sales candidates and three Engineer candidates, with Intern in both; team and user pages each contain six employees. System accounts do not appear in assignment choices, employee pages or workload metrics.
 - Full PostgreSQL suite: **96/96 passed**, 16.002 seconds. New checks cover both Intern assignment fields, assigned-task editing without automatic administrative access, Excel name matching, service-account exclusion, retained explicit administrative access and cross-team assignment restrictions. Django checks and migration drift check passed.
+
+
+## Multiple Sales / Engineer assignees (2026-11-13)
+
+- Added separate Sales and Engineer member relations, checkbox editors for full forms and a table dialog with explicit Save/Cancel. Intern is available in both team fields. Legacy primary FK callers remain supported.
+- Backed up PostgreSQL before migration. Compared all 214 task IDs, titles, statuses, priorities, progress values, dates, notes, versions and effective assignee sets before/after migration: unchanged. Legacy additional team members moved into the corresponding team relation.
+- Verified additional assignees have task access, edit permission, My Tasks, filtering, workload and team metrics. Assignment does not implicitly add a new person to every task in the project. Unauthorized role/team choices and non-manager assignment changes are rejected.
+- PostgreSQL regression suite: **103/103 passed**, 26.115 seconds, including multiple-team access, retained assignments on note edits, stale versions, empty selections/full-form clearing, multi-person Excel roundtrip, atomic grid rollback and project isolation for newly assigned people.
+- Browser selected and saved two Sales and three Engineers on a synthetic QA task. Reload retained all five selections; no JavaScript errors. Removed the QA task/project afterward and reverified the 214 original company tasks and all original effective assignments.
+- Node syntax, Django system checks and migration drift checks passed. Private backups, screenshots, roster and company records remain outside source control.

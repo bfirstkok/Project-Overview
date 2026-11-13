@@ -2,22 +2,25 @@ from django.db.models import Q
 from .models import Project, Task, Activity, User
 
 def personal_scope(user):
-    return Q(creator=user) | Q(sales=user) | Q(engineer=user) | Q(assignees=user) | Q(project__owner=user) | Q(project__members=user)
+    return Q(creator=user) | assigned_to(user) | Q(project__owner=user) | Q(project__members=user)
+
+def assigned_to(user):
+    return Q(sales=user) | Q(engineer=user) | Q(assignees=user) | Q(sales_members=user) | Q(engineer_members=user)
 
 def team_task_scope(user):
     own = personal_scope(user)
     if not user.team_id: return own
-    return own | Q(creator__team_id=user.team_id) | Q(sales__team_id=user.team_id) | Q(engineer__team_id=user.team_id) | Q(assignees__team_id=user.team_id) | Q(project__owner__team_id=user.team_id) | Q(project__members__team_id=user.team_id)
+    return own | Q(creator__team_id=user.team_id) | Q(sales__team_id=user.team_id) | Q(engineer__team_id=user.team_id) | Q(assignees__team_id=user.team_id) | Q(sales_members__team_id=user.team_id) | Q(engineer_members__team_id=user.team_id) | Q(project__owner__team_id=user.team_id) | Q(project__members__team_id=user.team_id)
 
 def tasks_for(user):
-    qs = Task.objects.select_related('project', 'creator', 'sales', 'engineer').prefetch_related('assignees')
+    qs = Task.objects.select_related('project', 'creator', 'sales', 'engineer').prefetch_related('assignees','sales_members','engineer_members')
     if user.is_admin: return qs
     return qs.filter(team_task_scope(user) if user.is_manager else personal_scope(user)).distinct()
 
 def projects_for(user):
     qs = Project.objects.select_related('owner').prefetch_related('members')
     if user.is_admin: return qs
-    scope = Q(owner=user) | Q(members=user) | Q(tasks__sales=user) | Q(tasks__engineer=user) | Q(tasks__assignees=user)
+    scope = Q(owner=user) | Q(members=user) | Q(tasks__sales=user) | Q(tasks__engineer=user) | Q(tasks__assignees=user) | Q(tasks__sales_members=user) | Q(tasks__engineer_members=user)
     if user.is_manager and user.team_id:
         scope |= Q(owner__team_id=user.team_id) | Q(members__team_id=user.team_id) | Q(tasks__in=tasks_for(user))
     return qs.filter(scope).distinct()
@@ -29,7 +32,7 @@ def manage_task(user, task):
     return user.is_admin or task.creator_id == user.pk or (user.is_manager and tasks_for(user).filter(pk=task.pk).exists())
 
 def edit_task(user, task):
-    return manage_task(user, task) or user.pk in [task.sales_id, task.engineer_id] or task.assignees.filter(pk=user.pk).exists()
+    return manage_task(user, task) or user.pk in [task.sales_id, task.engineer_id] or any(user.pk == person.pk for group in ['assignees','sales_members','engineer_members'] for person in getattr(task,group).all())
 
 def assignable_users(user):
     qs = User.objects.filter(is_active=True, is_service_account=False)

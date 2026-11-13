@@ -30,8 +30,11 @@ class TaskForm(StyledForm, forms.ModelForm):
     version = forms.IntegerField(widget=forms.HiddenInput, required=False)
     class Meta:
         model = Task
-        fields = ['title', 'project', 'description', 'sales', 'engineer', 'assignees', 'priority', 'status', 'start_date', 'due_date', 'progress', 'notes_to_colleague', 'work_notes']
+        fields = ['title', 'project', 'description', 'sales', 'engineer', 'sales_members', 'engineer_members', 'assignees', 'priority', 'status', 'start_date', 'due_date', 'progress', 'notes_to_colleague', 'work_notes']
+        widgets = {'sales':forms.HiddenInput(),'engineer':forms.HiddenInput(),'sales_members':forms.CheckboxSelectMultiple(),'engineer_members':forms.CheckboxSelectMultiple()}
     def __init__(self, *args, user, **kwargs):
+        incoming = args[0] if args else kwargs.get('data')
+        self.legacy_assignment_roles = incoming.get('_legacy_assignment_roles',[role for role in ['sales','engineer'] if role in incoming and role+'_members' not in incoming and role+'_members_present' not in incoming]) if incoming is not None else []
         super().__init__(*args, **kwargs)
         self.fields['project'].queryset = projects_for(user)
         self.fields['version'].initial = self.instance.version
@@ -40,6 +43,9 @@ class TaskForm(StyledForm, forms.ModelForm):
         self.fields['assignees'].queryset = people
         self.fields['sales'].queryset = people.filter(role__in=[User.Role.SALES,User.Role.INTERN])
         self.fields['engineer'].queryset = people.filter(role__in=[User.Role.ENGINEER,User.Role.INTERN])
+        for role in ['sales','engineer']:
+            self.fields[role+'_members'].queryset = self.fields[role].queryset
+            self.fields[role+'_members'].help_text = 'เลือกได้หลายคน รวมถึง Intern ที่ช่วยงานทั้งสองทีม'
         if self.instance.pk:
             # Preserve existing assignees if an employee is deactivated or moves teams.
             # New assignments still come only from the active, authorized choices.
@@ -47,26 +53,41 @@ class TaskForm(StyledForm, forms.ModelForm):
             for name in ['sales', 'engineer']:
                 current = getattr(self.instance, name + '_id')
                 self.fields[name].queryset = User.objects.filter(Q(pk__in=self.fields[name].queryset.values('pk')) | Q(pk=current))
+                members = self.fields[name+'_members']
+                members.queryset = User.objects.filter(Q(pk__in=members.queryset.values('pk')) | Q(pk__in=getattr(self.instance,name+'_members').values('pk')) | Q(pk=current))
+                if current and not getattr(self.instance,name+'_members').exists(): self.initial[name+'_members'] = [current]
             self.fields['assignees'].queryset = User.objects.filter(Q(pk__in=people.values('pk')) | Q(pk__in=self.instance.assignees.values('pk')))
         if self.instance.pk and not manage_task(user, self.instance):
             for name in ['title', 'project', 'description', 'assignees', 'priority', 'start_date', 'due_date']: self.fields[name].disabled = True
-            for name in ['sales', 'engineer']: self.fields[name].disabled = True
+            for name in ['sales', 'engineer', 'sales_members', 'engineer_members']: self.fields[name].disabled = True
         self.fields['project'].help_text = 'เว้นว่างสำหรับงานส่วนตัว / งานทั่วไป'
         self.fields['assignees'].help_text = 'สมาชิกเพิ่มเติมนอกเหนือจาก Sales และ Engineer'
         self.fields['progress'].help_text = '0–100% แยกจาก Status โดยไม่เปลี่ยนสถานะอัตโนมัติ'
         self.fields['notes_to_colleague'].help_text = 'บันทึกสื่อสารระหว่าง Sales และ Engineer ทุกการแก้ไขมีประวัติ'
         self.style()
+        for name in ['sales_members','engineer_members']: self.fields[name].widget.attrs.pop('class',None)
     def clean(self):
         data = super().clean()
         project = data.get('project')
         people = data.get('assignees')
+        for role in ['sales','engineer']:
+            group = data.get(role+'_members')
+            if group is not None and group.exists(): data[role] = group.first()
+            elif self.is_bound and role+'_members' in self.data: data[role] = None
         if project and people is not None:
             valid = set(project.members.values_list('pk', flat=True)) | {project.owner_id}
             if self.instance.pk and project.pk==self.instance.project_id:
                 valid |= {pk for pk in [self.instance.sales_id,self.instance.engineer_id] if pk}
                 valid |= set(self.instance.assignees.values_list('pk',flat=True))
+                valid |= set(self.instance.sales_members.values_list('pk',flat=True)) | set(self.instance.engineer_members.values_list('pk',flat=True))
             for field in ['sales', 'engineer']:
-                if data.get(field) and data[field].pk not in valid: self.add_error(field, 'ต้องเป็นเจ้าของหรือสมาชิกโปรเจกต์ เพิ่มสมาชิกในโปรเจกต์ก่อน')
+                group = data.get(field+'_members')
+                if group is not None and group.exists(): data[field] = group.first()
+                elif self.is_bound and field+'_members' in self.data: data[field] = None
+                selected = list(group or []) + ([data[field]] if data.get(field) else [])
+                # Multiple assignees are scoped by the authorized user querysets above.
+                # They gain access to this task without joining every task in its project.
+                if field in self.legacy_assignment_roles and any(person.pk not in valid for person in selected): self.add_error(field+'_members', 'ต้องเป็นเจ้าของหรือสมาชิกโปรเจกต์ เพิ่มสมาชิกในโปรเจกต์ก่อน')
             if any(person.pk not in valid for person in people): self.add_error('assignees', 'ผู้รับผิดชอบต้องเป็นเจ้าของหรือสมาชิกโปรเจกต์')
         return data
 

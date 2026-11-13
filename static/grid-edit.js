@@ -8,7 +8,7 @@
     const cell = event.target.closest('[data-field]');
     if (!cell || !editable() || root.dataset.bulkSaving) return;
     if (event.key === 'Escape') {
-      cell.value = cell.savedValue;
+      ProjectWorkCells.restore(cell,cell.savedValue);
       cell.blur();
       return;
     }
@@ -35,7 +35,7 @@
       }
     }
     cell.dispatchEvent(new Event('change', {bubbles:true}));
-    target?.focus();
+    if (target?.multiple) target.nextElementSibling?.focus(); else target?.focus();
     if (target?.type === 'text') target.select();
   }, true);
 
@@ -59,6 +59,10 @@
   }
   function convert(control, raw) {
     let value = raw.trim();
+    if (control.multiple) {
+      const names = value ? value.split(/[,\n&/]+/).map(name => name.trim().toLowerCase()).filter(Boolean) : [];
+      return JSON.stringify([...new Set(names.map(name => {const matches = [...control.options].filter(option => option.textContent.trim().toLowerCase() === name); if (matches.length !== 1) throw new Error('ไม่พบชื่อที่ตรงกัน: '+name); return matches[0].value;}))]);
+    }
     if (control.tagName === 'SELECT') {
       if (!value) return '';
       const matches = [...control.options].filter(option => option.textContent.trim().toLowerCase() === value.toLowerCase());
@@ -100,7 +104,7 @@
           if (!control || control.disabled || row.dataset.conflict) throw new Error('ช่วงที่วางมีช่องที่ไม่มีสิทธิ์แก้ไขหรือเกินตาราง');
           const value = convert(control, raw);
           if (value === control.savedValue) return;
-          changes[control.dataset.field] = value;
+          changes[control.dataset.field] = ProjectWorkCells.payload(control,value);
           preview.push([row.dataset.taskId, control.getAttribute('aria-label'), control.savedValue || '—', raw || '(ล้างค่า)']);
         });
         if (Object.keys(changes).length) edits.push({id:Number(row.dataset.taskId),version:Number(row.dataset.version),changes});

@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 from openpyxl import Workbook
 from .models import User, Project, Task, Status, Comment, Attachment, Activity, Team
 from .forms import ProjectForm, TaskForm, CommentForm, AttachmentForm, CreateUserForm, EditUserForm, TeamForm
-from .permissions import projects_for, tasks_for, edit_project, edit_task, manage_task, activities_for, assignable_users
+from .permissions import projects_for, tasks_for, edit_project, edit_task, manage_task, activities_for, assignable_users, assigned_to
 from .filters import filter_tasks, HEADERS
 from .services import save_work, inline_update, delete_work, EditConflict, update_grid, InvalidGridEdit
 
@@ -34,7 +34,7 @@ def filtered_tasks(request):
 
 
 def filter_context(user):
-    visible_users = User.objects.filter(Q(pk=user.pk) | Q(tasks__in=tasks_for(user)) | Q(sales_tasks__in=tasks_for(user)) | Q(engineering_tasks__in=tasks_for(user)), is_service_account=False, is_active=True).distinct()
+    visible_users = User.objects.filter(Q(pk=user.pk) | Q(tasks__in=tasks_for(user)) | Q(sales_tasks__in=tasks_for(user)) | Q(engineering_tasks__in=tasks_for(user)) | Q(sales_group_tasks__in=tasks_for(user)) | Q(engineer_group_tasks__in=tasks_for(user)), is_service_account=False, is_active=True).distinct()
     return {'projects': projects_for(user), 'people': visible_users, 'sales_people': visible_users.filter(role__in=['sales','intern']), 'engineer_people': visible_users.filter(role__in=['engineer','intern']), 'statuses': Status.choices, 'priorities': Task.Priority.choices}
 
 def stats(qs):
@@ -45,14 +45,14 @@ def dashboard(request):
     tasks = tasks_for(request.user)
     summary = stats(tasks)
     workload = []
-    metric_people = assignable_users(request.user) if request.user.is_manager else User.objects.filter(Q(tasks__in=tasks) | Q(sales_tasks__in=tasks) | Q(engineering_tasks__in=tasks)).distinct()
+    metric_people = assignable_users(request.user) if request.user.is_manager else User.objects.filter(Q(tasks__in=tasks) | Q(sales_tasks__in=tasks) | Q(engineering_tasks__in=tasks) | Q(sales_group_tasks__in=tasks) | Q(engineer_group_tasks__in=tasks)).distinct()
     for person in metric_people:
-        person_tasks = tasks.filter(Q(sales=person) | Q(engineer=person) | Q(assignees=person)).distinct()
+        person_tasks = tasks.filter(assigned_to(person)).distinct()
         workload.append({'person':person,'stats':stats(person_tasks)})
-    sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(sales=r['person']))} for r in workload if r['person'].eligible_for('sales')]
-    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].eligible_for('engineer')]
+    sales_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(sales=r['person']) | Q(sales_members=r['person'])).distinct())} for r in workload if r['person'].eligible_for('sales')]
+    engineer_rows = [{'person':r['person'],'stats':stats(tasks.filter(Q(engineer=r['person']) | Q(engineer_members=r['person']) | Q(assignees=r['person'])).distinct())} for r in workload if r['person'].eligible_for('engineer')]
     chart = [{'label': label, 'value': tasks.filter(status=value).count(), 'key': value} for value, label in Status.choices]
-    return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(Q(sales=request.user) | Q(engineer=request.user) | Q(assignees=request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate()})
+    return render(request, 'work/dashboard.html', {'workload':workload,'sales_rows':sales_rows,'engineer_rows':engineer_rows,'summary': summary, 'project_count': projects_for(request.user).count(), 'my_tasks': tasks.filter(assigned_to(request.user)).distinct().exclude(status__in=[Status.DONE, Status.CANCELLED])[:5], 'due_tasks': tasks.filter(due_date__isnull=False).exclude(status__in=[Status.DONE, Status.CANCELLED]).order_by('due_date')[:6], 'activities': activities_for(request.user)[:6], 'chart': chart, 'chart_json': chart, 'today': timezone.localdate()})
 
 @login_required
 def project_list(request):
@@ -109,7 +109,7 @@ def task_list(request):
     task_page = page(request, qs, page_size)
     for task in task_page:
         task.can_manage = request.user.is_manager or task.creator_id == request.user.pk
-        task.can_edit = task.can_manage or request.user.pk in [task.sales_id, task.engineer_id] or any(p.pk == request.user.pk for p in task.assignees.all())
+        task.can_edit = edit_task(request.user,task)
     sort = request.GET.get('sort') or '-no'
     from .filters import SORTS
     if sort.lstrip('-') not in SORTS: sort = '-no'
@@ -214,7 +214,7 @@ def team_view(request):
     if not request.user.is_manager: raise PermissionDenied
     people = []
     for person in assignable_users(request.user).select_related('team'):
-        qs = tasks_for(request.user).filter(Q(sales=person) | Q(engineer=person) | Q(assignees=person)).distinct()
+        qs = tasks_for(request.user).filter(assigned_to(person)).distinct()
         people.append({'person': person, 'stats': stats(qs), 'average': round(qs.aggregate(v=Avg('progress'))['v'] or 0), 'tasks': qs.exclude(status__in=[Status.DONE, Status.CANCELLED])[:5]})
     return render(request, 'work/team.html', {'people': people, 'staff_groups': [{'label':label,'rows':[row for row in people if row['person'].role==role]} for role,label in [('sales','Sales'),('engineer','Engineer'),('intern','Intern · ช่วยงานได้ทั้งสองทีม')]]})
 
@@ -240,8 +240,9 @@ def export_report(qs, mode):
     rows=[]
     for task in qs:
         person_name = lambda person: str(person) if task.source_data else person.username
-        engineers = ([person_name(task.engineer)] if task.engineer else []) + [person_name(person) for person in task.assignees.all() if person.pk != task.sales_id]
-        rows.append([task.register_number, str(task.project or ''), task.title, task.get_priority_display(), task.get_status_display(), task.start_date, task.due_date, task.progress, person_name(task.sales) if task.sales else '', ', '.join(engineers), task.notes_to_colleague])
+        sales_people = list(task.sales_members.all()) or ([task.sales] if task.sales else [])
+        engineers = [person_name(person) for person in task.engineer_members.all()] or ([person_name(task.engineer)] if task.engineer else [])
+        rows.append([task.register_number, str(task.project or ''), task.title, task.get_priority_display(), task.get_status_display(), task.start_date, task.due_date, task.progress, ', '.join(person_name(person) for person in sales_people), ', '.join(engineers), task.notes_to_colleague])
     if mode=='csv':
         from .excel import COLUMNS
         response=HttpResponse(content_type='text/csv; charset=utf-8-sig'); response.write('\ufeff')

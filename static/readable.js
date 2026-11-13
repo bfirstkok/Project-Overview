@@ -28,9 +28,10 @@
     densityButton.textContent = compact ? 'แถวกระชับ' : 'แถวอ่านสบาย';
   });
   function cellText(control) {
-    const raw = control.savedValue ?? control.value;
+    const raw = control.savedValue ?? ProjectWorkCells.value(control);
     let value = raw;
-    if (control.tagName === 'SELECT') value = [...control.options].find(option => option.value === raw)?.textContent || '';
+    if (control.multiple) {const ids = JSON.parse(raw || '[]'); value = [...control.options].filter(option => ids.includes(option.value)).map(option => option.textContent).join(', ');}
+    else if (control.tagName === 'SELECT') value = [...control.options].find(option => option.value === raw)?.textContent || '';
     if (control.type === 'date' && raw) {
       const [year, month, day] = raw.split('-');
       value = `${day}/${month}/${year}`;
@@ -56,7 +57,7 @@
     if (root.dataset.bulkSaving) return false;
     if (!on) {
       for (const control of root.querySelectorAll('[data-field]')) {
-        if (control.value !== control.savedValue && !control.disabled) {
+        if (ProjectWorkCells.value(control) !== control.savedValue && !control.disabled) {
           if (!control.checkValidity()) {control.reportValidity(); return false;}
           control.dispatchEvent(new Event('change', {bubbles:true}));
         }
@@ -90,10 +91,10 @@
     row.querySelectorAll('[data-field]').forEach(control => {
       refreshCell(control);
       if (!card) return;
-      const field = control.dataset.field;
+      const field = control.dataset.field.replace('_members','');
       const target = card.querySelector(`[data-card-field="${field}"]`);
       if (!target) return;
-      const raw = control.savedValue ?? control.value;
+      const raw = control.savedValue ?? ProjectWorkCells.value(control);
       let text = cellText(control);
       if (field === 'progress') {
         text = raw + '%';

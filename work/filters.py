@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import Q, Case, When, Value, IntegerField
 from django.db.models.functions import Coalesce
 from .models import Task, Status
-from .permissions import tasks_for
+from .permissions import tasks_for, assigned_to
 
 class TaskFilters(forms.Form):
     no = forms.IntegerField(required=False, min_value=1)
@@ -31,14 +31,16 @@ def filter_tasks(request):
     form = TaskFilters(request.GET)
     if not form.is_valid(): return qs.none(), form
     data = form.cleaned_data
-    if data['engineer']: qs = qs.filter(Q(engineer_id=data['engineer']) | Q(assignees__pk=data['engineer']))
+    if data['engineer']: qs = qs.filter(Q(engineer_id=data['engineer']) | Q(engineer_members__pk=data['engineer']) | Q(assignees__pk=data['engineer']))
     data['engineer'] = None
+    if data['sales']: qs = qs.filter(Q(sales_id=data['sales']) | Q(sales_members__pk=data['sales']))
+    data['sales'] = None
     if data['q']: qs = qs.filter(Q(title__icontains=data['q']) | Q(project__title__icontains=data['q']))
     for param, field in [('no','_register_no'),('project','project_id'),('sales','sales_id'),('engineer','engineer_id'),('priority','priority'),('status','status'),('project_name','project__title__icontains'),('task_name','title__icontains'),('notes','notes_to_colleague__icontains'),('start_from','start_date__gte'),('start_to','start_date__lte'),('end_from','due_date__gte'),('end_to','due_date__lte'),('progress_min','progress__gte'),('progress_max','progress__lte')]:
         if data[param] is not None and data[param] != '': qs = qs.filter(**{field:data[param]})
     if data['assignees']:
-        p = data['assignees']; qs = qs.filter(Q(sales_id=p) | Q(engineer_id=p) | Q(assignees__pk=p))
-    if request.GET.get('mine'): qs = qs.filter(Q(sales=request.user) | Q(engineer=request.user) | Q(assignees=request.user))
+        qs = qs.filter(assigned_to(data['assignees']))
+    if request.GET.get('mine'): qs = qs.filter(assigned_to(request.user))
     if request.GET.get('overdue'):
         from django.utils import timezone
         qs = qs.filter(due_date__lt=timezone.localdate()).exclude(status__in=[Status.DONE, Status.CANCELLED])

@@ -5,7 +5,7 @@
   <p class="task-card-project" data-card-field="project">{{ task.project|default:'งานทั่วไป / ส่วนตัว' }}</p>
   <h2><a data-card-field="title" href="{% url 'task_detail' task.pk %}">{{ task.title }}</a></h2>
   <div class="task-card-progress"><span>ความคืบหน้า</span><strong data-card-field="progress">{{ task.progress }}%</strong></div><div class="progress"><div class="progress-bar" style="width:{{ task.progress }}%"></div></div>
-  <div class="task-card-people"><div><span>Sales</span><b data-card-field="sales">{{ task.sales|default:'ยังไม่มอบหมาย' }}</b></div><div><span>Engineer</span><b data-card-field="engineer">{{ task.engineer|default:'ยังไม่มอบหมาย' }}</b></div></div>
+  <div class="task-card-people"><div><span>Sales</span><b data-card-field="sales">{{ task.sales_display|default:'ยังไม่มอบหมาย' }}</b></div><div><span>Engineer</span><b data-card-field="engineer">{{ task.engineer_display|default:'ยังไม่มอบหมาย' }}</b></div></div>
   <p data-card-field="notes_to_colleague" class="task-card-note" {% if not task.notes_to_colleague %}hidden{% endif %}>{{ task.notes_to_colleague|truncatechars:150 }}</p>
   <div class="task-card-bottom"><span data-card-field="due_date" class="{% if task.overdue %}overdue{% endif %}">{% if task.overdue %}เกินกำหนด · {% endif %}กำหนดส่ง {{ task.due_date|date:'d/m/Y'|default:'ไม่ระบุ' }}</span><a href="{% url 'task_detail' task.pk %}">เปิดงาน →</a></div>
 </article>
