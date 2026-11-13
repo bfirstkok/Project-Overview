@@ -110,7 +110,9 @@ def task_list(request):
     for task in task_page:
         task.can_manage = request.user.is_manager or task.creator_id == request.user.pk
         task.can_edit = task.can_manage or request.user.pk in [task.sales_id, task.engineer_id] or any(p.pk == request.user.pk for p in task.assignees.all())
-    sort = request.GET.get('sort', 'no')
+    sort = request.GET.get('sort') or '-no'
+    from .filters import SORTS
+    if sort.lstrip('-') not in SORTS: sort = '-no'
     headers = [{'key':key, 'label':label, 'next':('-'+key if sort == key else key), 'active':sort.lstrip('-') == key, 'descending':sort.startswith('-')} for key,label in HEADERS]
     ctx.update(page_size=page_size, task_summary=stats(qs), page=task_page, view=mode, filter_form=filter_form, headers=headers, all_sales=assignable_users(request.user).filter(role='sales'), all_engineers=assignable_users(request.user).filter(role='engineer'))
     return render(request, 'work/tasks.html', ctx)
