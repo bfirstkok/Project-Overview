@@ -1,0 +1,6 @@
+node_modules/
+.sites-local/
+.env*
+!.env.example
+*.zip
+.preview*
