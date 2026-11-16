@@ -1,10 +1,1 @@
-{
-  "clientId": "6f755086-e58e-4533-b1fe-1eddced25ec5",
-  "tenantId": "e1c0d622-71bd-42f6-ba07-ab2b2645df6c",
-  "allowedDomain": "askme.co.th",
-  "siteHostname": "askmecoth-my.sharepoint.com",
-  "sitePath": "/personal/khanathippakorn_n_askme_co_th",
-  "listId": "363b0f7e-a9a6-4ebf-b73a-1eb763b526ba",
-  "listUrl": "https://askmecoth-my.sharepoint.com/personal/khanathippakorn_n_askme_co_th/Lists/AskMe%20KKN%20%20Sales%20%20Engineering%20Tasks/AllItems.aspx",
-  "scopes": ["Sites.ReadWrite.All"]
-}
+{"mode":"accounts"}

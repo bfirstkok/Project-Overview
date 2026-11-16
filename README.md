@@ -1,3 +1,5 @@
+> **เว็บที่เผยแพร่ปัจจุบัน:** [AskMe Workboard](https://askme-kkn-workboard.spiritedmandrill.chatgpt.site) ใช้บัญชีพนักงานและฐานข้อมูล D1 ของตัวเอง ไม่ต้องขอ Microsoft admin consent ดูวิธีเปิดบัญชีและรันระบบที่ [public-web/README.md](public-web/README.md) ส่วนเอกสารด้านล่างอธิบายแอป Django เดิม ข้อมูลในเว็บเป็นสำเนาแยกจาก Excel/Lists ไม่มีการซิงก์กลับอัตโนมัติ
+
 # ProjectWork — Excel-Based Sales & Engineering Tracking
 
 Django 5.2 LTS + Bootstrap 5 + PostgreSQL 17 + Docker Compose/Caddy ภาษาไทย ไม่มี AI หรือ frontend build pipeline
