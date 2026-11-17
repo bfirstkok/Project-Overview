@@ -7,5 +7,5 @@ export function demoTasks(){const day=today(),relative=n=>{const d=new Date(day+
  ['โครงการตัวอย่าง D','นัดนำเสนอ Solution','On Hold','Normal',30,['Araya'],['Sayan'],7,'รอผู้รับผิดชอบยืนยันวัน'],
  ['โครงการตัวอย่าง E','ทดสอบอุปกรณ์','In Progress','High',40,['Sabaipair'],['Jakkarin','Sayan'],0,'ทดสอบตามรายการที่ตกลง'],
  ['โครงการตัวอย่าง B','เตรียม BOM','Complete','Low',100,['Araya'],['Sayan'],-1,'จัดเตรียมรายการเรียบร้อย'],
- ['โครงการตัวอย่าง F','ประสานงาน Vendor','To Do','Normal',0,['Panithan'],['khanathippakorn'],4,'ขอข้อมูลรุ่นและระยะเวลาส่งมอบ']
+ ['โครงการตัวอย่าง F','ประสานงาน Vendor','In Progress','Normal',100,['Panithan'],['khanathippakorn'],-1,'ดำเนินการครบ 100% แล้ว รอผู้รับผิดชอบยืนยันปิดงาน']
  ].map((r,i)=>({...blankTask(),id:String(101+i),etag:'demo-1',no:String(i+1),project:r[0],task:r[1],status:r[2],priority:r[3],progress:r[4],sales:r[5],engineer:r[6],start:relative(-7),end:relative(r[7]),notes:r[8]}));}
