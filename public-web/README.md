@@ -2,7 +2,7 @@
 
 Public website: https://askme-kkn-workboard.spiritedmandrill.chatgpt.site
 
-This web app uses its own employee accounts and a hosted Cloudflare D1 database. Ordinary employee login does not require Microsoft sign-in or Graph permissions. An optional Admin-only Excel read connection trial uses Microsoft Files.Read and is subject to company consent policies. The original Django application remains separate in the repository root.
+This web app uses its own employee accounts and a hosted Cloudflare D1 database. Ordinary employee login does not require Microsoft sign-in or Graph permissions. Excel references use manually saved .xlsx copies and do not require Microsoft app consent. The previous online connection trial is disabled. The original Django application remains separate in the repository root.
 
 ## Using the app
 
@@ -45,14 +45,21 @@ Passwords use PBKDF2-SHA256 with individual random salts and 100,000 iterations.
 
 ## Validation
 
-25 automated checks cover the six-person roster, assignment permissions, Admin-only invite creation, sign-in/out, invite replay prevention, CSRF, password hashing, login throttling, task creation/idempotency, stale-write rejection, assignment/history consistency, progress/status independence, source date exceptions, and existing data transformations. Browser QA verifies account login, adding a task with multiple assignees, inline progress/status changes, activity history, account controls, and charts. Regression coverage includes 100% open work, explicit completion, cancellation, due-today boundaries, and matching table/card deadline labels. Responsive QA checks 390px phone and 1440px desktop layouts, mobile filtering, table edit mode, and dashboard closure links. The 214-row source copy is additionally round-tripped and compared field by field locally before production import.
+30 automated checks cover the six-person roster, assignment permissions, Admin-only invite creation, sign-in/out, invite replay prevention, CSRF, password hashing, login throttling, task creation/idempotency, stale-write rejection, assignment/history consistency, progress/status independence, source date exceptions, and existing data transformations. Browser QA verifies account login, adding a task with multiple assignees, inline progress/status changes, activity history, account controls, and charts. Regression coverage includes 100% open work, explicit completion, cancellation, due-today boundaries, and matching table/card deadline labels. Responsive QA checks 390px phone and 1440px desktop layouts, mobile filtering, table edit mode, and dashboard closure links. The 214-row source copy is additionally round-tripped and compared field by field locally before production import.
 
 Legacy `src/graph.js` and its transformation tests are retained for reference; the production entrypoint does not import it, and the deployed worker has no Microsoft client IDs or permissions.
 
-## Optional Microsoft Excel read connection trial
 
-Admin opens **ทีมของเรา → เชื่อม Excel ต้นฉบับ**. The trial requests only delegated `Files.Read` using the existing company SPA registration; it never requests a write scope or modifies the original workbook. The source sharing URL is a secret runtime `EXCEL_SHARE_URL`, never a public bundle or committed file. Microsoft access tokens stay in browser session storage and are passed transiently to the same-origin Admin-only read endpoint. They are not stored in D1 or logs.
+## Latest Excel reference copies
 
-The server uses GET-only Graph requests for the one configured file, strips the bearer before following a Microsoft download redirect, rejects untrusted hosts, and limits the response to 15 MB. It records only a read-check timestamp, byte count, SHA-256, and `syncEnabled:false`. This trial does not replace task data and does not enable automatic refresh until file access has actually succeeded. Microsoft may still require company administrator approval despite the read-only scope. Existing employee accounts and work remain usable if consent is denied.
+**Excel อ้างอิง** is a separate, read-only view of the latest saved workbook. It never replaces or edits tasks maintained on the website. Search, person/status/priority filters, latest-first sorting, card/table views, source dates, and progress work on the reference data. Task details cannot edit reference rows or display unrelated web-task history. All signed-in team members can view the reference and download its exact original bytes.
 
-Shared-file fallback: a separate explicit button can request delegated `Files.Read.All` for files shared with the signed-in user. This remains read-only but is broader than `Files.Read` and may require company approval. It is not requested by ordinary sign-in or the default read button. The fixed source URL and GET-only server restriction remain in effect. No automatic sync is enabled by this trial.
+Admin chooses **บันทึกสำเนาใหม่**, selects an .xlsx file (up to 500 KB), and uses **ตรวจข้อมูลก่อนบันทึก**. The preview displays row counts, sample rows, validation errors, ignored empty rows, and preserved source-date warnings. **บันทึกเป็นสำเนาอ้างอิง** archives the validated copy after confirmation. Duplicate hashes do not create additional versions; a stale preview cannot replace a newer reference. Previous copies remain archived and immutable.
+
+Source format: worksheet `To-Do List`, the existing 11 column titles, unique positive task numbers, valid dates and progress. Source strings are preserved; Buddhist year text is normalized for display. ALL expands to the approved Engineer roster. Original reversed date ranges are retained and flagged. No source workbook is modified.
+
+The reference banner shows the filename, source modification timestamp from workbook metadata, import timestamp in Asia/Bangkok, and task count. It explicitly states that this is a saved copy, not a live Microsoft sync. The XLSX bytes and parsed rows are stored in the authenticated D1 archive table, never in public assets or Git. File access and upload permissions are checked by the backend. Request sizes and expanded ZIP sizes are bounded.
+
+The first current reference is a fresh download on 17 November 2026 of `To do list with progress tracker_AskMe KKN.xlsx`: 215 tasks, workbook modification timestamp 2026-11-16T14:24:58Z, SHA-256 `f0b2f199084898e97bfe8508879b3596a22191b18eb335e7b61963fadf490dc7`. It is distinct from the initial 214-task web migration. Downloading this file used the signed-in OneDrive interface and did not change the original.
+
+The previous `/api/excel/*` online connector returns HTTP 410. The frontend no longer initializes Microsoft authentication or requests additional permissions. Existing company app registrations and granted permissions are not changed.
