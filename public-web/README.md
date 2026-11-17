@@ -2,7 +2,7 @@
 
 Public website: https://askme-kkn-workboard.spiritedmandrill.chatgpt.site
 
-This web app uses its own employee accounts and a hosted Cloudflare D1 database. Microsoft sign-in, Graph permissions, and Microsoft administrator consent are not required. The original Django application remains separate in the repository root.
+This web app uses its own employee accounts and a hosted Cloudflare D1 database. Ordinary employee login does not require Microsoft sign-in or Graph permissions. An optional Admin-only Excel read connection trial uses Microsoft Files.Read and is subject to company consent policies. The original Django application remains separate in the repository root.
 
 ## Using the app
 
@@ -45,6 +45,12 @@ Passwords use PBKDF2-SHA256 with individual random salts and 100,000 iterations.
 
 ## Validation
 
-21 automated checks cover the six-person roster, assignment permissions, Admin-only invite creation, sign-in/out, invite replay prevention, CSRF, password hashing, login throttling, task creation/idempotency, stale-write rejection, assignment/history consistency, progress/status independence, source date exceptions, and existing data transformations. Browser QA verifies account login, adding a task with multiple assignees, inline progress/status changes, activity history, account controls, and charts. Regression coverage includes 100% open work, explicit completion, cancellation, due-today boundaries, and matching table/card deadline labels. Responsive QA checks 390px phone and 1440px desktop layouts, mobile filtering, table edit mode, and dashboard closure links. The 214-row source copy is additionally round-tripped and compared field by field locally before production import.
+25 automated checks cover the six-person roster, assignment permissions, Admin-only invite creation, sign-in/out, invite replay prevention, CSRF, password hashing, login throttling, task creation/idempotency, stale-write rejection, assignment/history consistency, progress/status independence, source date exceptions, and existing data transformations. Browser QA verifies account login, adding a task with multiple assignees, inline progress/status changes, activity history, account controls, and charts. Regression coverage includes 100% open work, explicit completion, cancellation, due-today boundaries, and matching table/card deadline labels. Responsive QA checks 390px phone and 1440px desktop layouts, mobile filtering, table edit mode, and dashboard closure links. The 214-row source copy is additionally round-tripped and compared field by field locally before production import.
 
 Legacy `src/graph.js` and its transformation tests are retained for reference; the production entrypoint does not import it, and the deployed worker has no Microsoft client IDs or permissions.
+
+## Optional Microsoft Excel read connection trial
+
+Admin opens **ทีมของเรา → เชื่อม Excel ต้นฉบับ**. The trial requests only delegated `Files.Read` using the existing company SPA registration; it never requests a write scope or modifies the original workbook. The source sharing URL is a secret runtime `EXCEL_SHARE_URL`, never a public bundle or committed file. Microsoft access tokens stay in browser session storage and are passed transiently to the same-origin Admin-only read endpoint. They are not stored in D1 or logs.
+
+The server uses GET-only Graph requests for the one configured file, strips the bearer before following a Microsoft download redirect, rejects untrusted hosts, and limits the response to 15 MB. It records only a read-check timestamp, byte count, SHA-256, and `syncEnabled:false`. This trial does not replace task data and does not enable automatic refresh until file access has actually succeeded. Microsoft may still require company administrator approval despite the read-only scope. Existing employee accounts and work remain usable if consent is denied.
