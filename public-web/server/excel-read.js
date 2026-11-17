@@ -9,12 +9,13 @@ export async function probeExcel(request,env,fetcher=fetch){
   const source=new URL(env.EXCEL_SHARE_URL);if(source.protocol!=='https:'||!source.hostname.endsWith('.sharepoint.com'))return json({error:'การตั้งค่าไฟล์ต้นฉบับไม่ถูกต้อง'},503);
   const share='u!'+btoa(env.EXCEL_SHARE_URL).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   let response=await fetcher('https://graph.microsoft.com/v1.0/shares/'+share+'/driveItem/content',{method:'GET',headers:{Authorization:authorization},redirect:'manual',signal:AbortSignal.timeout(25000)});
+  let stage='graph';
   for(let hop=0;hop<4&&[301,302,303,307,308].includes(response.status);hop++){
    const location=response.headers.get('Location');if(!location)return json({error:'Microsoft ไม่ส่งที่อยู่ดาวน์โหลดไฟล์'},502);
    const target=new URL(location);if(target.protocol!=='https:'||!(target.hostname===source.hostname||target.hostname.endsWith('.files.1drv.com')))return json({error:'Microsoft ส่งปลายทางดาวน์โหลดที่ไม่ได้อนุญาต'},502);
-   response=await fetcher(target.href,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(25000)});
+   stage='download';response=await fetcher(target.href,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(25000)});
   }
-  if(!response.ok)return json({error:response.status===403?'Microsoft ยังไม่อนุญาตให้อ่านไฟล์นี้ด้วย Files.Read อาจต้องให้เจ้าของไฟล์หรือ IT อนุมัติ':response.status===401?'Microsoft ต้องการให้เข้าสู่ระบบใหม่':'อ่านไฟล์ Excel จาก Microsoft ไม่สำเร็จ',microsoftStatus:response.status},response.status===401||response.status===403?403:502);
+  if(!response.ok){let detail;try{detail=await response.json();}catch{}const raw=detail?.error?.code||'';const code=/^[A-Za-z0-9_.-]{1,80}$/.test(raw)?raw:'unknown';const description=String(detail?.error?.message||'').replace(/https?:\/\/\S+/g,'[Microsoft URL]').slice(0,220);return json({error:(response.status===403?'Microsoft ยังไม่อนุญาตให้อ่านไฟล์นี้ด้วย Files.Read':response.status===401?'Microsoft ต้องการให้เข้าสู่ระบบใหม่':'อ่านไฟล์ Excel จาก Microsoft ไม่สำเร็จ')+' · '+stage+' · '+code+(description?' · '+description:''),microsoftStatus:response.status,microsoftStage:stage,microsoftCode:code},response.status===401||response.status===403?403:502);}
   if(Number(response.headers.get('Content-Length'))>limit)return json({error:'ไฟล์ใหญ่เกิน 15 MB'},413);
   const reader=response.body.getReader(),chunks=[];let size=0;
   while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();return json({error:'ไฟล์ใหญ่เกิน 15 MB'},413);}chunks.push(value);}
