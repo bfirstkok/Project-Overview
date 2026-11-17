@@ -52,7 +52,7 @@ Legacy `src/graph.js` and its transformation tests are retained for reference; t
 
 ## Latest Excel reference copies
 
-**Excel อ้างอิง** is a separate, read-only view of the latest saved workbook. It never replaces or edits tasks maintained on the website. Search, person/status/priority filters, latest-first sorting, card/table views, source dates, and progress work on the reference data. Task details cannot edit reference rows or display unrelated web-task history. All signed-in team members can view the reference and download its exact original bytes.
+**Excel อ้างอิง** is a separate, read-only view of the latest saved workbook. The archive remains immutable. Admin can separately reconcile it into editable website tasks. Search, person/status/priority filters, latest-first sorting, card/table views, source dates, and progress work on the reference data. Task details cannot edit reference rows or display unrelated web-task history. All signed-in team members can view the reference and download its exact original bytes.
 
 Admin chooses **บันทึกสำเนาใหม่**, selects an .xlsx file (up to 500 KB), and uses **ตรวจข้อมูลก่อนบันทึก**. The preview displays row counts, sample rows, validation errors, ignored empty rows, and preserved source-date warnings. **บันทึกเป็นสำเนาอ้างอิง** archives the validated copy after confirmation. Duplicate hashes do not create additional versions; a stale preview cannot replace a newer reference. Previous copies remain archived and immutable.
 
@@ -63,3 +63,9 @@ The reference banner shows the filename, source modification timestamp from work
 The first current reference is a fresh download on 17 November 2026 of `To do list with progress tracker_AskMe KKN.xlsx`: 215 tasks, workbook modification timestamp 2026-11-16T14:24:58Z, SHA-256 `f0b2f199084898e97bfe8508879b3596a22191b18eb335e7b61963fadf490dc7`. It is distinct from the initial 214-task web migration. Downloading this file used the signed-in OneDrive interface and did not change the original.
 
 The previous `/api/excel/*` online connector returns HTTP 410. The frontend no longer initializes Microsoft authentication or requests additional permissions. Existing company app registrations and granted permissions are not changed.
+
+## Reconcile Excel into web tasks
+
+After saving a reference, Admin reviews the reconciliation preview, then chooses **สำรองและอัปเดตตารางงาน**. The same action is available as **อัปเดตตารางงานจากไฟล์นี้** on the reference page. Matching uses original source No., never an editable project title. Three-way comparison updates unchanged fields from Excel, adds missing source tasks, and preserves web edits. Divergent edits and unsupported rows are listed in the preview. No task is deleted and progress never sets status automatically. Original reversed source dates are preserved.
+
+Each atomic D1 batch captures full task/assignment backup in reconciliation_runs, checks the preview snapshot, applies assignments and activity history, and rejects stale previews without partial writes. Admin can download a run backup at /api/reference/reconcile/backup/{runId}. An optional expiring one-use maintenance capability is scoped to an exact source SHA-256; it cannot log in, edit arbitrary tasks, or be reused. Runtime secrets are removed after the authorized migration.
