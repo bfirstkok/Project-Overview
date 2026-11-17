@@ -66,6 +66,8 @@ The previous `/api/excel/*` online connector returns HTTP 410. The frontend no l
 
 ## Reconcile Excel into web tasks
 
+The workspace uses a restrained white navigation, compact summary strip, thin table rules, and muted green actions. Decorative slogans and extra status icons are reduced. The duplicate top scrollbar has been removed; the task table retains native horizontal scrolling, sticky source columns, and keyboard access. Navigation constrains overflow so no stray horizontal scrollbar appears under the employee profile. Smaller screens keep the card view and touch scrolling in the navigation.
+
 After saving a reference, Admin reviews the reconciliation preview, then chooses **สำรองและอัปเดตตารางงาน**. The same action is available as **อัปเดตตารางงานจากไฟล์นี้** on the reference page. Matching uses original source No., never an editable project title. Three-way comparison updates unchanged fields from Excel, adds missing source tasks, and preserves web edits. Divergent edits and unsupported rows are listed in the preview. No task is deleted and progress never sets status automatically. Original reversed source dates are preserved.
 
 Each atomic D1 batch captures full task/assignment backup in reconciliation_runs, checks the preview snapshot, applies assignments and activity history, and rejects stale previews without partial writes. Admin can download a run backup at /api/reference/reconcile/backup/{runId}. An optional expiring one-use maintenance capability is scoped to an exact source SHA-256; it cannot log in, edit arbitrary tasks, or be reused. Runtime secrets are removed after the authorized migration.
