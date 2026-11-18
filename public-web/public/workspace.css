@@ -245,6 +245,7 @@ tbody tr:nth-child(even) td { background: #fbfcfe; }tbody tr:hover td { backgrou
 @media(max-width:550px) { .stat>span:first-child { align-items: center; gap: 7px; }.stat strong,.stat[data-scope=all] strong { font-size: 22px; }.stat[data-scope=all] strong { color: #285fc6; }.stat[data-scope=overdue] strong { color: #b96064; }.page-heading p { font-size: 11px; margin-top: 5px; }.view-switch button { font-size: 11px; padding: 7px 10px; } }
 
 /* The task page gives the available height to rows, with one compact filter strip. */
+.stats { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .overview-charts { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
 .overview-chart { padding: 22px; background: #fff; border: 1px solid #dfe6f1; border-radius: 9px; min-width: 0; }
 .overview-chart-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 22px; }
@@ -273,6 +274,7 @@ tbody tr:nth-child(even) td { background: #fbfcfe; }tbody tr:hover td { backgrou
 .task-focused .page-heading h1 { font-size: 22px; }
 .task-focused .heading-actions .button { min-height: 34px; padding: 7px 12px; }
 .task-focused .stats { padding: 0; margin-bottom: 12px; border-radius: 6px; }
+.task-focused .stats { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .task-focused .stat,.task-focused .stat[data-scope=all] { padding: 9px 15px; }
 .task-focused .stat>span:first-child { flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; }
 .task-focused .stat small,.task-focused .stat[data-scope=all] small { font-size: 12px; margin: 0; }

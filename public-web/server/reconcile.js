@@ -1,6 +1,6 @@
 import {employeeRoster} from './employees.js';
 import {referenceRows} from './reference.js';
-import {LABELS,ROSTER} from '../src/core.js';
+import {LABELS,ROSTER,withCompletion,effectiveStatus} from '../src/core.js';
 import {taskPayload,validatePayload} from './policy.js';
 import {digest,timingEqual} from './security.js';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
@@ -9,7 +9,7 @@ const fields=Object.keys(LABELS).filter(k=>k!=='no');
 export function mergeTasks(rows,incoming,roster=ROSTER){
  const updates=[],added=[],preserved=[],conflicts=[],unchanged=[],skipped=[];
  const byNo=new Map();for(const row of rows){if(!row.source_data||!row.no)continue;if(byNo.has(row.no))throw Error('เลขงานต้นฉบับซ้ำในเว็บ');byNo.set(row.no,row);}
- for(const t of incoming){const incomingPayload=taskPayload(t),row=byNo.get(String(t.no));
+ for(const t of incoming){const incomingPayload=withCompletion(taskPayload(t)),row=byNo.get(String(t.no));
   if(!row){const error=validatePayload(incomingPayload,incomingPayload,roster);if(error){skipped.push({no:t.no,error});continue;}added.push({no:String(t.no),payload:incomingPayload});continue;}
   const current=JSON.parse(row.payload),source=JSON.parse(row.source_data);let baseline=source.baselinePayload;
   if(!baseline){try{baseline=referenceRows([Object.values(LABELS),Object.values(LABELS).map(l=>source.values[l])]).tasks[0];}catch{skipped.push({no:t.no,error:'ไม่พบข้อมูลตั้งต้นสำหรับเทียบ'});continue;}}
@@ -19,6 +19,7 @@ export function mergeTasks(rows,incoming,roster=ROSTER){
    if(equal(current[field],baseline[field])){payload[field]=incomingPayload[field];changed.push(field);}
    else{const detail={no:t.no,field,baseline:baseline[field],web:current[field],excel:incomingPayload[field]};(equal(incomingPayload[field],baseline[field])?preserved:conflicts).push(detail);}
   }
+  payload.status=effectiveStatus(payload);if(payload.status!==current.status&&!changed.includes('status'))changed.push('status');
   const error=validatePayload(payload,payload.start===incomingPayload.start&&payload.end===incomingPayload.end?incomingPayload:current,roster);
   if(error){skipped.push({no:t.no,error});continue;}
   const entry={id:row.id,no:row.no,payload,changed,baselinePayload:incomingPayload};
