@@ -6,3 +6,5 @@ node_modules/
 .preview*
 .local/
 dist/
+.wrangler/
+wrangler.local.json

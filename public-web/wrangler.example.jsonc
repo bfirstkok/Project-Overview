@@ -1,0 +1,14 @@
+{
+  "name": "askme-kkn-workboard",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-11-18",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "askme-kkn-workboard",
+    "database_id": "REPLACE_WITH_YOUR_CREATED_D1_DATABASE_ID",
+    "migrations_dir": "drizzle"
+  }]
+}

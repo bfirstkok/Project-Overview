@@ -1,6 +1,25 @@
 # AskMe Workboard — independent employee accounts
 
-Public website: https://askme-kkn-workboard.spiritedmandrill.chatgpt.site
+Cloudflare website: https://askme-kkn-workboard.askme-workboard.workers.dev
+
+Original Sites address: https://askme-kkn-workboard.spiritedmandrill.chatgpt.site
+
+## Independent Cloudflare hosting
+
+The application also deploys directly to Cloudflare Workers Free with a D1 database. Install dependencies, copy `wrangler.example.jsonc` to ignored `wrangler.local.json`, replace the database ID with one returned by `wrangler d1 create askme-kkn-workboard`, then run:
+
+```sh
+npx wrangler login --scopes account:read user:read workers_scripts:write d1:write
+npx wrangler d1 migrations apply DB --remote --config wrangler.local.json
+npm run build
+npx wrangler deploy --config wrangler.local.json
+```
+
+Use only the Free plan; no custom domain or paid service is required. The application never calls ChatGPT or Microsoft APIs. `DB` must bind to the independent D1 database. Runtime migration/export secrets must not be configured on the destination. Ordinary users sign in again on the new domain with their existing credentials; sessions and outstanding invitation tokens are not transferred.
+
+For a private backup, run `npx wrangler d1 export DB --remote --config wrangler.local.json --output <private-backup.sql>`. Backups contain private business data and salted password hashes: keep them outside Git. Free D1 also offers limited point-in-time recovery; a separate export protects against account and deployment mistakes.
+
+The migration exporter is disabled unless an expiring secret is explicitly configured. `MIGRATION_READ_ONLY=1` on the source prevents mutations during final transfer. `scripts/cloudflare-migration.mjs` validates snapshot checksums, generates bounded SQL statements for large reference/backup fields, and verifies an exact SQLite round trip before import. After destination verification, `SITE_MOVED_TO` on the source can redirect page GETs to the verified new `workers.dev` origin. POST bodies, credentials, and API requests are never redirected across origins. Remove export secrets after migration.
 
 This web app uses its own employee accounts and a hosted Cloudflare D1 database. Ordinary employee login does not require Microsoft sign-in or Graph permissions. Excel references use manually saved .xlsx copies and do not require Microsoft app consent. The previous online connection trial is disabled. The original Django application remains separate in the repository root.
 

@@ -1,4 +1,5 @@
 import {referenceAPI} from './reference.js';
+import {migrationExport} from './migration.js';
 import {reconcileAPI} from './reconcile.js';
 import {STAFF,canEdit,validatePayload,passwordError,taskPayload} from './policy.js';
 import {digest,hashPassword,randomToken,timingEqual,cookieToken,sessionCookie} from './security.js';
@@ -23,6 +24,8 @@ async function seed(request,env){await setupAllowed(request,env);const data=awai
 export async function api(request,env){try{
  const url=new URL(request.url),path=url.pathname,db=env.DB;if(!db)fail('ฐานข้อมูลยังไม่พร้อม',503);
  if(!['GET','HEAD'].includes(request.method)&&request.headers.get('Origin')!==url.origin)fail('ไม่อนุญาตคำขอจากเว็บไซต์อื่น',403);
+ if(path==='/api/maintenance/migration/export')return await migrationExport(request,env);
+ if(env.MIGRATION_READ_ONLY==='1'&&!['GET','HEAD'].includes(request.method)&&!['/api/login','/api/logout'].includes(path))return json({error:'กำลังย้ายระบบ ข้อมูลยังดูได้ กรุณารอสักครู่ก่อนแก้ไขงาน'},503);
  if(path==='/api/session'&&request.method==='GET'){try{return json({user:publicUser(await authenticated(request,db))});}catch(e){if(e.status===401)return json({user:null});throw e;}}
  if(path==='/api/setup/seed'&&request.method==='POST')return await seed(request,env);
  if(path==='/api/setup/check'&&request.method==='POST'){await setupAllowed(request,env);return json({count:(await bind(db,'SELECT count(*) AS n FROM tasks').first()).n,users:(await db.prepare('SELECT count(*) AS n FROM users').first()).n,seed:JSON.parse((await bind(db,"SELECT value FROM settings WHERE key='seed_complete'").first())?.value||'null')});}

@@ -1,7 +1,9 @@
 import {api} from './api.js';
+import {movedResponse} from './migration.js';
 import assets from '../.local/assets.js';
 export default {async fetch(request,env){
  const url=new URL(request.url);
+ const moved=movedResponse(request,env.SITE_MOVED_TO);if(moved)return moved;
  if(url.pathname.startsWith('/api/'))return api(request,env);
  const asset=assets[url.pathname==='/'?'/index.html':url.pathname];
  const headers={'Content-Type':asset?.type||'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"};
