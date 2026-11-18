@@ -245,6 +245,19 @@ tbody tr:nth-child(even) td { background: #fbfcfe; }tbody tr:hover td { backgrou
 @media(max-width:550px) { .stat>span:first-child { align-items: center; gap: 7px; }.stat strong,.stat[data-scope=all] strong { font-size: 22px; }.stat[data-scope=all] strong { color: #285fc6; }.stat[data-scope=overdue] strong { color: #b96064; }.page-heading p { font-size: 11px; margin-top: 5px; }.view-switch button { font-size: 11px; padding: 7px 10px; } }
 
 /* The task page gives the available height to rows, with one compact filter strip. */
+.sidebar nav { position: relative; isolation: isolate; }
+.sidebar nav.has-motion-indicator .nav-link { position: relative; z-index: 1; }
+.sidebar nav.has-motion-indicator .nav-link.active { background: transparent; box-shadow: none; }
+.nav-motion-indicator { position: absolute; z-index: 0; background: #2859ad; border-radius: 7px; box-shadow: inset 3px 0 #83b4ff; pointer-events: none; }
+.button,.nav-link,.stat,.progress-presets button { position: relative; overflow: hidden; }
+.motion-ripple { position: absolute; background: currentColor; border-radius: 50%; pointer-events: none; opacity: 0; }
+.overview-chart,.task-card,.team-card { transition: transform 200ms cubic-bezier(.2,.7,.3,1),box-shadow 200ms ease,border-color 200ms ease; }
+@media(hover:hover) and (pointer:fine) { .overview-chart:hover,.task-card:hover,.team-card:hover { transform: translateY(-3px); border-color: #bdcfee; box-shadow: 0 12px 26px #244c8610; }.button.primary:hover { box-shadow: 0 4px 13px #285fc62a; }.nav-link:not(.active):hover svg { transform: translateX(2px); } }
+.nav-link svg { transition: transform 180ms ease; }.stat strong { font-variant-numeric: tabular-nums; }
+dialog[open] { animation-duration: 260ms; box-shadow: 0 30px 90px #061b3d45; }
+dialog[open]::backdrop { backdrop-filter: blur(3px); animation-duration: 220ms; }
+@media(max-width:900px) { .nav-motion-indicator { box-shadow: inset 0 -2px #83b4ff; border-radius: 6px 6px 0 0; } }
+@media(prefers-reduced-motion:reduce) { .overview-chart:hover,.task-card:hover,.team-card:hover { transform: none!important; } }
 /* Motion enhances feedback without shifting the spreadsheet or blocking input. */
 .overview-bar-track i,.progress-track i { transform-origin: left center; }
 .overview-month-chart rect { transform-box: fill-box; transform-origin: center bottom; }
