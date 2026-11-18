@@ -4,6 +4,35 @@ import {api} from '../server/api.js';
 import {taskPayload} from '../server/policy.js';
 import {database} from './d1.mjs';
 const origin='https://workboard.test';
+import {employeeRoster} from '../server/employees.js';
+import {referenceRows} from '../server/reference.js';
+import {LABELS} from '../src/core.js';
+test('Admin creates a Thai intern, invite activates once, generated username resolves assignments',async()=>{
+ const f=await fixture();const added=await f.call('/api/admin/users','POST',{name:'  สมชาย ทดสอบ  ',role:'intern'},f.admin);assert.equal(added.status,201);assert.equal(added.data.user.name,'สมชาย ทดสอบ');assert.equal(added.data.user.active,false);assert.equal(added.data.user.isAdmin,false);assert.match(added.data.user.id,/^staff-/);
+ const {user,url}=added.data,token=new URL(url).hash.slice(8),pending=f.env.DB.sql.prepare('SELECT * FROM users WHERE id=?').get(user.id);assert.equal(pending.password_hash,null);assert.equal(f.env.DB.sql.prepare('SELECT token_hash FROM invites WHERE user_id=?').get(user.id).token_hash.length,64);
+ const directory=await employeeRoster(f.env.DB);assert.ok(directory.sales.includes(user.name));assert.ok(directory.engineer.includes(user.name));
+ const inspected=await f.call('/api/invites/inspect','POST',{token});assert.equal(inspected.status,200);assert.equal(inspected.data.user.id,user.id);assert.equal(inspected.data.user.password_hash,undefined);
+ const activated=await f.call('/api/activate','POST',{token,password:'new-intern-test-password'});assert.equal(activated.status,200);assert.equal((await f.call('/api/activate','POST',{token,password:'another-test-password'})).status,410);assert.equal((await f.call('/api/invites/inspect','POST',{token})).status,410);
+ assert.equal((await f.call('/api/login','POST',{username:user.id,password:'new-intern-test-password'})).status,200);
+ const created=await f.call('/api/tasks','POST',{requestId:crypto.randomUUID(),task:{...task,sales:[user.name],engineer:[user.name]}},f.admin);assert.equal(created.status,201);const saved=created.data.task;
+ assert.deepEqual(f.env.DB.sql.prepare('SELECT user_id FROM assignments WHERE task_id=?').all(Number(saved.id)).map(r=>r.user_id),[user.id,user.id]);
+ const visible=(await f.call('/api/tasks','GET',undefined,activated.cookie)).data.tasks.find(t=>t.id===saved.id);assert.equal(visible.canEdit,true);
+ assert.equal((await f.call('/api/tasks/'+saved.id,'PATCH',{...taskPayload(saved),progress:25},activated.cookie,{'If-Match':saved.etag})).status,200);
+ assert.equal((await f.call('/api/admin/invites','POST',{userId:user.id},f.admin)).status,200);
+});
+test('employee creation rejects non-Admin, duplicate names, invalid positions and privilege escalation',async()=>{
+ const f=await fixture(),pan=await f.employee('panithan');assert.equal((await f.call('/api/admin/users','POST',{name:'New sales',role:'sales'},pan.cookie)).status,403);
+ for(const data of [{name:' ',role:'sales'},{name:'New',role:'admin'},{name:'New',role:'manager'}])assert.equal((await f.call('/api/admin/users','POST',data,f.admin)).status,422);
+ assert.equal((await f.call('/api/admin/users','POST',{name:'New',role:'intern',is_admin:1},f.admin)).status,400);
+ assert.equal((await f.call('/api/admin/users','POST',{name:' panithan ',role:'sales'},f.admin)).status,409);
+ const first=await f.call('/api/admin/users','POST',{name:'Nok IT',role:'engineer'},f.admin);assert.equal(first.status,201);assert.equal(first.data.user.id,'nok-it');assert.equal((await f.call('/api/admin/users','POST',{name:'NOK IT',role:'sales'},f.admin)).status,409);assert.equal(f.env.DB.sql.prepare('SELECT count(*) n FROM users').get().n,7);
+});
+test('new employee teams drive task validation and Excel ALL expansion; replacement invites revoke old links',async()=>{
+ const f=await fixture(),added=await f.call('/api/admin/users','POST',{name:'New Engineer',role:'engineer'},f.admin);assert.equal(added.status,201);const directory=await employeeRoster(f.env.DB);assert.ok(directory.engineer.includes('New Engineer'));assert.ok(!directory.sales.includes('New Engineer'));
+ assert.equal((await f.call('/api/tasks','POST',{requestId:crypto.randomUUID(),task:{...task,sales:['New Engineer']}},f.admin)).status,400);
+ const imported=referenceRows([Object.values(LABELS),[99,'Project','Survey','High','To Do','','',0,'Panithan','ALL','']],directory);assert.ok(imported.tasks[0].engineer.includes('New Engineer'));
+ const invitation=new URL(added.data.url).hash.slice(8);assert.equal((await f.call('/api/admin/invites','POST',{userId:added.data.user.id},f.admin)).status,200);assert.equal((await f.call('/api/activate','POST',{token:invitation,password:'old-invite-test-password'})).status,410);
+});
 const task={project:'Test project',task:'Survey',status:'To Do',priority:'High',start:'2026-11-01',end:'2026-11-30',progress:0,sales:['Panithan','Araya'],engineer:['Jakkarin','khanathippakorn'],notes:'Test note'};
 async function fixture(){const env={DB:database(),SETUP_TOKEN:'test-only-setup-token'};const call=async(path,method='GET',data,cookie='',headers={})=>{const response=await api(new Request(origin+path,{method,headers:{Origin:origin,...(cookie?{Cookie:cookie}:{}),...headers},...(data===undefined?{}:{body:JSON.stringify(data)})}),env);return {status:response.status,data:await response.json(),cookie:response.headers.get('Set-Cookie')?.split(';')[0],headers:response.headers};};
  const seeded=await call('/api/setup/seed','POST',{tasks:[{...task,no:1},{...task,no:2,start:'2026-04-29',end:'2026-03-31'}],sourceHash:'test-only',sourceFile:'synthetic.xlsx'},'',{'X-Setup-Token':env.SETUP_TOKEN});assert.equal(seeded.status,200);

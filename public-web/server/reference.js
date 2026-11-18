@@ -1,3 +1,4 @@
+import {employeeRoster} from './employees.js';
 import {readSheet} from 'read-excel-file/universal';
 import {unzipSync,strFromU8} from 'fflate';
 import {LABELS,STATUSES,PRIORITIES,people,ROSTER} from '../src/core.js';
@@ -18,7 +19,7 @@ export function sourceDate(value){
  if(Number(date.slice(0,4))>2400)date=String(Number(date.slice(0,4))-543)+date.slice(4);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)throw Error('วันที่ไม่มีอยู่จริง');return date;
 }
-export function referenceRows(rows){
+export function referenceRows(rows,roster=ROSTER){
  const header=rows.slice(0,20).findIndex(row=>row&&Object.values(LABELS).every(label=>row.some(cell=>normal(cell)===normal(label))));if(header<0)throw Error('ไม่พบหัวตาราง 11 คอลัมน์ตามไฟล์ To-do List');
  const columns=Object.fromEntries(Object.entries(LABELS).map(([key,label])=>[key,rows[header].findIndex(cell=>normal(cell)===normal(label))]));
  const tasks=[],errors=[],warnings=[],ids=new Set();let skipped=0;
@@ -27,18 +28,18 @@ export function referenceRows(rows){
    const raw=value('progress');if(raw===null||raw===undefined||raw==='')throw Error('ไม่พบ % Complete');let progress=typeof raw==='string'&&raw.trim().endsWith('%')?Number(raw.trim().slice(0,-1)):Number(raw);if(!(typeof raw==='string'&&raw.trim().endsWith('%'))&&progress<=1)progress*=100;if(!Number.isFinite(progress)||progress<0||progress>100)throw Error('% Complete ต้องอยู่ระหว่าง 0–100');progress=Math.round(progress);
    const start=sourceDate(value('start')),end=sourceDate(value('end'));
    const canonical=(choices,v)=>choices.find(c=>c.toLowerCase()===String(v??'').trim().toLowerCase())||String(v??'');
-   const names=kind=>people(value(kind),kind).map(n=>ROSTER[kind].find(p=>p.toLowerCase()===n.toLowerCase())||n);
+   const names=kind=>people(value(kind),kind,roster).map(n=>roster[kind].find(p=>p.toLowerCase()===n.toLowerCase())||n);
    const t={id:String(no),no:String(no),project,task,priority:canonical(PRIORITIES,value('priority')),status:canonical(STATUSES,value('status')),start,end,progress,sales:names('sales'),engineer:names('engineer'),notes:String(value('notes')??''),canEdit:false,source:'reference'};
    if(project.length>5000||task.length>10000||t.notes.length>20000)throw Error('ข้อความยาวเกินกำหนด');
    if(start&&end&&end<start)warnings.push({row:i+1,no,message:'คงวันที่สิ้นสุดก่อนวันเริ่มต้นตามไฟล์เดิม'});
-   for(const kind of ['sales','engineer'])for(const name of t[kind])if(!ROSTER[kind].includes(name))warnings.push({row:i+1,no,message:'คงชื่อจากไฟล์: '+name});tasks.push(t);
+   for(const kind of ['sales','engineer'])for(const name of t[kind])if(!roster[kind].includes(name))warnings.push({row:i+1,no,message:'คงชื่อจากไฟล์: '+name});tasks.push(t);
   }catch(error){errors.push({row:i+1,message:error.message});}
  }
  if(tasks.length>5000)throw Error('รองรับไม่เกิน 5,000 งานต่อไฟล์');if(!tasks.length&&!errors.length)throw Error('ไม่พบงานในไฟล์');return {tasks,errors,warnings,skipped};
 }
-export async function parseReference(bytes,filename){
+export async function parseReference(bytes,filename,roster=ROSTER){
  checkZip(bytes);if(typeof filename!=='string'||filename.length>250||/[\r\n]/.test(filename)||!filename.toLowerCase().endsWith('.xlsx'))throw Error('เลือกไฟล์ .xlsx');
- const rows=await readSheet(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),{sheet:'To-Do List',trim:false});const result=referenceRows(rows);
+ const rows=await readSheet(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),{sheet:'To-Do List',trim:false});const result=referenceRows(rows,roster);
  if(new TextEncoder().encode(JSON.stringify(result.tasks)).length+Math.ceil(bytes.length/3)*4>1900000)throw Error('ข้อมูลอ้างอิงใหญ่เกินกำหนด');
  const metadata=unzipSync(bytes,{filter:file=>file.name==='docProps/core.xml'});const xml=metadata['docProps/core.xml']?strFromU8(metadata['docProps/core.xml']):'';const modified=xml.match(/<dcterms:modified[^>]*>([^<]+)</)?.[1];
  return {...result,filename,size:bytes.length,sha256:await hash(bytes),sourceModified:modified&&Number.isFinite(Date.parse(modified))?new Date(modified).toISOString():null};
@@ -53,7 +54,7 @@ export async function referenceAPI(request,env,user){
  try{
   if(Number(request.headers.get('Content-Length'))>700000)return json({error:'ไฟล์ใหญ่เกินกำหนด'},413);
   const reader=request.body?.getReader();if(!reader)throw Error('เลือกไฟล์ Excel');const chunks=[];let size=0;while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>700000){await reader.cancel();return json({error:'ไฟล์ใหญ่เกินกำหนด'},413);}chunks.push(value);}const body=new Uint8Array(size);let at=0;for(const chunk of chunks){body.set(chunk,at);at+=chunk.length;}
-  const form=await new Request(request.url,{method:'POST',headers:request.headers,body}).formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function')throw Error('เลือกไฟล์ Excel');const bytes=new Uint8Array(await file.arrayBuffer()),parsed=await parseReference(bytes,file.name);
+  const form=await new Request(request.url,{method:'POST',headers:request.headers,body}).formData(),file=form.get('file');if(!file||typeof file.arrayBuffer!=='function')throw Error('เลือกไฟล์ Excel');const bytes=new Uint8Array(await file.arrayBuffer()),parsed=await parseReference(bytes,file.name,await employeeRoster(db));
   const current=(await db.prepare('SELECT max(id) AS id FROM excel_references').first()).id||0;
   if(path.endsWith('/preview'))return json({...parsed,tasks:parsed.tasks.slice(0,5),rowCount:parsed.tasks.length,currentId:current});
   if(parsed.errors.length)return json({error:'มีข้อมูลที่อ่านไม่ได้ กรุณาตรวจ Preview',errors:parsed.errors},422);

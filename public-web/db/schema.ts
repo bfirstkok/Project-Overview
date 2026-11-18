@@ -1,6 +1,6 @@
 import {sqliteTable,text,integer,index,uniqueIndex,check} from 'drizzle-orm/sqlite-core';
 import {sql} from 'drizzle-orm';
-export const users=sqliteTable('users',{id:text('id').primaryKey(),name:text('name').notNull(),role:text('role').notNull(),is_admin:integer('is_admin').notNull().default(0),password_hash:text('password_hash'),salt:text('salt'),active:integer('active').notNull().default(0)});
+export const users=sqliteTable('users',{id:text('id').primaryKey(),name:text('name').notNull(),role:text('role').notNull(),is_admin:integer('is_admin').notNull().default(0),password_hash:text('password_hash'),salt:text('salt'),active:integer('active').notNull().default(0)},t=>[uniqueIndex('user_name_unique').on(sql`lower(trim(${t.name}))`)]);
 export const sessions=sqliteTable('sessions',{token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>users.id),expires:integer('expires').notNull()},t=>[index('session_expiry').on(t.expires)]);
 export const invites=sqliteTable('invites',{token_hash:text('token_hash').primaryKey(),user_id:text('user_id').notNull().references(()=>users.id),expires:integer('expires').notNull(),used:integer('used').notNull().default(0)},t=>[index('invite_user').on(t.user_id)]);
 export const authAttempts=sqliteTable('auth_attempts',{id:integer('id').primaryKey({autoIncrement:true}),bucket:text('bucket').notNull(),created:integer('created').notNull()},t=>[index('auth_attempt_bucket').on(t.bucket,t.created)]);

@@ -25,6 +25,10 @@ This web app uses its own employee accounts and a hosted Cloudflare D1 database.
 
 ## Using the app
 
+Admin can add future employees under **ทีมของเรา → บัญชีพนักงาน → เพิ่มพนักงาน**. Enter the display name and choose Sales, Engineer or Intern (both teams), then select **เพิ่มและสร้างลิงก์เชิญ**. A unique username and seven-day, single-use invitation are created atomically. Copy the link and send it to the employee yourself; no email is sent automatically. The invitation page shows the employee's name and login username before password setup. Duplicate names are rejected, and new accounts have no Admin privileges.
+
+The employee directory drives assignment choices, person filters, team cards, workload charts, task validation and Excel ALL expansion. Pending accounts may be assigned work before activation. Display names resolve to actual account IDs in assignment records, including Thai names whose generated usernames differ from their names. Existing accounts retain their usernames, passwords, roles and task history. Admin can issue a replacement invitation from the same directory; old invitation links are revoked.
+
 1. The owner opens the one-time setup link supplied privately and sets a password (12–128 characters) for `khanathippakorn`, the first Admin. There is no default production password.
 2. Admin opens **ทีมของเรา → บัญชีพนักงาน**, generates a one-time activation link, and gives it to the matching employee. Links expire in seven days; generating a replacement invalidates the previous link. The same flow resets a forgotten password.
 3. Employees sign in with lowercase usernames: `panithan`, `araya`, `sabaipair`, `jakkarin`, `sayan`, `khanathippakorn`.
