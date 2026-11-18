@@ -25,6 +25,8 @@ This web app uses its own employee accounts and a hosted Cloudflare D1 database.
 
 ## Using the app
 
+Short animations provide feedback for page changes, chart growth, dialog opening, invitation forms, saving and successful task updates. Table rows never move during editing, animations do not delay network requests, and chart animation work is bounded for larger teams. The operating system's Reduce Motion preference disables both CSS and JavaScript motion; switching it on also cancels in-flight animations.
+
 Admin can add future employees under **ทีมของเรา → บัญชีพนักงาน → เพิ่มพนักงาน**. Enter the display name and choose Sales, Engineer or Intern (both teams), then select **เพิ่มและสร้างลิงก์เชิญ**. A unique username and seven-day, single-use invitation are created atomically. Copy the link and send it to the employee yourself; no email is sent automatically. The invitation page shows the employee's name and login username before password setup. Duplicate names are rejected, and new accounts have no Admin privileges.
 
 The employee directory drives assignment choices, person filters, team cards, workload charts, task validation and Excel ALL expansion. Pending accounts may be assigned work before activation. Display names resolve to actual account IDs in assignment records, including Thai names whose generated usernames differ from their names. Existing accounts retain their usernames, passwords, roles and task history. Admin can issue a replacement invitation from the same directory; old invitation links are revoked.

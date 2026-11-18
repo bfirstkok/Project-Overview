@@ -245,6 +245,22 @@ tbody tr:nth-child(even) td { background: #fbfcfe; }tbody tr:hover td { backgrou
 @media(max-width:550px) { .stat>span:first-child { align-items: center; gap: 7px; }.stat strong,.stat[data-scope=all] strong { font-size: 22px; }.stat[data-scope=all] strong { color: #285fc6; }.stat[data-scope=overdue] strong { color: #b96064; }.page-heading p { font-size: 11px; margin-top: 5px; }.view-switch button { font-size: 11px; padding: 7px 10px; } }
 
 /* The task page gives the available height to rows, with one compact filter strip. */
+/* Motion enhances feedback without shifting the spreadsheet or blocking input. */
+.overview-bar-track i,.progress-track i { transform-origin: left center; }
+.overview-month-chart rect { transform-box: fill-box; transform-origin: center bottom; }
+.button,.nav-link,.view-switch button,.progress-presets button { transition: background-color 140ms ease,border-color 140ms ease,color 140ms ease,box-shadow 140ms ease; }
+.button.primary:active { transform: translateY(1px); }
+tbody td { transition: background-color 120ms ease; }
+dialog[open] { animation: askme-dialog-in 180ms cubic-bezier(.2,.7,.3,1); }
+dialog[open]::backdrop { animation: askme-backdrop-in 160ms ease-out; }
+.employee-create:not([hidden]),.employee-invitation:not(:empty) { animation: askme-reveal-in 170ms ease-out; }
+[aria-busy="true"] .progress-value,[aria-busy="true"] .inline-status { opacity: .6; }
+#save-task:disabled::after { content: ''; display: inline-block; width: 12px; height: 12px; border: 2px solid #ffffff55; border-top-color: #fff; border-radius: 50%; margin-left: 8px; vertical-align: middle; animation: askme-saving 700ms linear infinite; }
+@keyframes askme-dialog-in { from { opacity: 0; transform: translateY(9px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes askme-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes askme-reveal-in { from { opacity: .35; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes askme-saving { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation: none!important; transition: none!important; scroll-behavior: auto!important; } }
 .stats { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .overview-charts { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
 .overview-chart { padding: 22px; background: #fff; border: 1px solid #dfe6f1; border-radius: 9px; min-width: 0; }
