@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {overviewData} from '../src/overview.js';
+import {extraOverviewData} from '../src/overview-extra.js';
+import {filterTasks} from '../src/core.js';
 const day='2026-11-18',base={status:'In Progress',progress:50,priority:'High',start:'2026-11-01',end:'2026-11-17',sales:['New Intern'],engineer:['New Intern']},users=[{name:'New Intern',role:'intern'},{name:'New Sales',role:'sales'}];
 test('overview statuses reconcile to tasks, 100% automatically completes, and multi-team assignments count once per employee',()=>{
  const tasks=[base,{...base,progress:100},{...base,status:'Complete'},{...base,status:'Cancelled'},{...base,end:day,priority:'Normal',sales:['New Sales'],engineer:[]}],before=JSON.stringify(tasks),data=overviewData(tasks,users,day);
@@ -13,4 +15,30 @@ test('six-month chart uses Start Date and calendar boundaries without inventing 
 });
 test('empty overview preserves zero categories and unassigned employees without invalid values',()=>{
  const data=overviewData([],users,day);assert.equal(data.metrics.total,0);assert.ok(data.statuses.every(s=>s.count===0));assert.ok(data.priorities.every(s=>s.count===0));assert.ok(data.months.every(s=>s.count===0));assert.equal(data.workload.length,2);assert.ok(data.workload.every(p=>p.total===0));
+});
+
+test('progress chart ranges reconcile with their filtered task lists', () => {
+  const tasks = [0, 24, 25, 49, 50, 74, 75, 99, 100].map(progress => ({...base, progress}));
+  tasks.push({...base, status: 'Complete'}, {...base, status: 'Cancelled', progress: 100});
+  const data = extraOverviewData(tasks, overviewData(tasks, users, day).months);
+  assert.equal(data.openCount, 8);
+  assert.equal(data.mean, 49.5);
+  for (const {min, max, count} of data.buckets) {
+    assert.equal(count, 2);
+    assert.equal(filterTasks(tasks, {scope: 'pending', progressMin: min, progressMax: max}).length, count);
+  }
+  assert.equal(extraOverviewData(tasks.slice(-3), overviewData(tasks, users, day).months).mean, null);
+});
+
+test('cumulative starts carry forward prior months and teams count a shared task once each', () => {
+  const tasks = [
+    {...base, start: '2025-05-01', sales: ['A', 'B']},
+    {...base, start: '2026-06-01', progress: 100},
+    {...base, start: '', status: 'Cancelled', sales: []},
+    {...base, start: '2026-12-01', sales: [], engineer: []},
+  ];
+  const data = extraOverviewData(tasks, overviewData(tasks, users, day).months);
+  assert.deepEqual(data.trend.map(month => month.count), [2, 2, 2, 2, 2, 2]);
+  assert.deepEqual(data.assignments.map(({done, open, cancelled}) => [done, open, cancelled]), [[1, 1, 0], [1, 1, 1]]);
+  for (const team of data.assignments) assert.equal(filterTasks(tasks, {assignedTeam: team.key}).length, team.total);
 });

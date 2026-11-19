@@ -376,5 +376,42 @@ dialog[open]::backdrop { animation: askme-backdrop-in 160ms ease-out; }
 .task-focused .stat.selected::before { opacity:1; }
 .task-focused .stat:hover { border-color:#bdcde5; background:#fbfcff; }
 .task-focused .stat:active { box-shadow:0 0 0 1px #cbdaf0; }
+
+/* Overview: cumulative line, progress distribution, gauge and team stacks. */
+.overview-extra { display: flex; flex-direction: column; }
+.overview-extra .overview-chart-heading { margin-bottom: 14px; }
+.overview-extra .overview-chart-note { margin-top: auto; padding-top: 13px; color: #637591; }
+.overview-trend { display: block; width: 100%; height: 190px; }
+.overview-trend-area { fill: #edf3ff; }
+.overview-trend-line { fill: none; stroke: #3869be; stroke-width: 2.5; stroke-linejoin: round; }
+.overview-trend circle { fill: #fff; stroke: #3869be; stroke-width: 2; }
+.overview-extra .chart-axis { fill: #637591; }
+.overview-progress-bins { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-block: 4px; }
+.overview-progress-bins button,.overview-team-bar {
+  border: 1px solid transparent;
+  background: #f5f8fd;
+  color: #3a557c;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.overview-progress-bins button:not(:disabled):hover,.overview-team-bar:not(:disabled):hover { background: #eaf1fd; border-color: #b9ccef; }
+.overview-progress-bins button:disabled,.overview-team-bar:disabled { cursor: default; }
+.overview-progress-bins button { display: grid; justify-items: center; gap: 7px; padding: 9px 3px; font-size: 12px; }
+.overview-progress-bins strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.overview-bin-track { display: flex; align-items: flex-end; justify-content: center; height: 95px; width: 100%; border-bottom: 1px solid #d8e3f3; }
+.overview-bin-track > span { width: min(58%,42px); border-radius: 4px 4px 0 0; background: #5788d4; transform-origin: bottom; }
+.overview-gauge { display: block; width: min(100%,260px); height: 157px; margin: 0 auto; }
+.overview-gauge-track,.overview-gauge-fill { fill: none; stroke-width: 12; stroke-linecap: round; }
+.overview-gauge-track { stroke: #eaf0f8; }
+.overview-gauge-fill { stroke: #5788d4; }
+.overview-team-legend { flex-wrap: wrap; row-gap: 5px; }
+.overview-team-bars { display: grid; gap: 8px; }
+.overview-team-bar { display: grid; text-align: left; gap: 5px; padding: 8px 10px; width: 100%; }
+.overview-team-bar > span:first-child { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.overview-team-bar small { color: #637591; font-size: 11px; }
+.overview-team-bar .overview-bar-track { height: 9px; }
+.team-fill-done { background: #69a18a; }
+.team-fill-open { background: #5788d4; }
+.team-fill-cancelled { background: #a1aec4; }
 @media(max-width:1100px) { .task-focused .stat,.task-focused .stat[data-scope=all] { gap:8px; padding:9px 11px; }.task-focused .stat small,.task-focused .stat[data-scope=all] small { font-size:11px; }.task-focused .stat strong,.task-focused .stat[data-scope=all] strong { font-size:21px; } }
 @media(max-width:650px) { .task-focused .stats { gap:6px; }.task-focused .stat,.task-focused .stat[data-scope=all] { min-height:54px; padding:7px 4px; border-radius:6px; }.task-focused .stat .stat-icon { display:none; }.task-focused .stat>span:first-child { flex-direction:column; justify-content:center; gap:4px; }.task-focused .stat small,.task-focused .stat[data-scope=all] small { font-size:10px; }.task-focused .stat strong,.task-focused .stat[data-scope=all] strong { font-size:20px; }.task-focused .stat::before { top:12px; bottom:12px; width:2px; } }
